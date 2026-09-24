@@ -94,11 +94,13 @@
     <string name="preset_udp">UDP ports (empty = from settings)</string>
     <string name="preset_ports">Ports: TCP %1$s · UDP %2$s</string>
     <string name="preset_editor_hint">You can paste winws arguments from a .bat file: --wf-tcp/--wf-udp become ports. Placeholders: $FAKE (fake payloads), $LUA, $LISTS, $EXCLUDE, $KIT, {sni}.</string>
-    <string name="presets_hint">Store presets come from CDPI UI kits. Auto select saves its results to the "Auto select" group.</string>
+    <string name="presets_hint">Store presets come from CDPI UI kits, the catalogue holds every strategy auto selection tests. Auto select results are saved to the "Auto select" group.</string>
     <string name="source_builtin">Built-in</string>
     <string name="source_store">From the store</string>
     <string name="source_user">Mine</string>
     <string name="source_auto">Auto select</string>
+    <string name="source_external">ByeByeDPI strategies</string>
+    <string name="source_catalog">Manka catalogue</string>
     <string name="option_default">As in preset</string>
     <string name="option_n">Variant %1$d</string>
     <string name="flag_game_tcp">Game filter TCP (ports 1024-65535)</string>

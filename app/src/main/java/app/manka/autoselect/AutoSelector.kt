@@ -141,7 +141,7 @@ class AutoSelector(
     /** Runs a full selection and returns the final state. Safe to call from a worker. */
     suspend fun run(request: AutoRequest): AutoState {
         val external = if (request.byeByeDpi && Engine.BYEDPI in request.engines) {
-            ExternalStrategies.byeByeDpi(context)
+            ExternalStrategies.byeByeDpi(context).also { presets.reloadCatalog() }
         } else {
             emptyList()
         }

@@ -20,8 +20,10 @@ class PresetRepository(private val context: Context, private val prefs: Prefs) {
 
     private var userPresets: List<Preset> = emptyList()
     private var storePresets: List<Preset> = emptyList()
+    private var catalog: List<Preset> = emptyList()
 
     init {
+        catalog = buildCatalog()
         userPresets = runCatching { json.decodeFromString<List<Preset>>(file.readText()) }.getOrDefault(emptyList())
         reloadStore()
     }
@@ -31,8 +33,33 @@ class PresetRepository(private val context: Context, private val prefs: Prefs) {
         publish()
     }
 
+    /** Picks up a freshly downloaded ByeByeDPI list. */
+    fun reloadCatalog() {
+        catalog = buildCatalog()
+        publish()
+    }
+
+    /** Every strategy auto selection knows, selectable by hand. */
+    private fun buildCatalog(): List<Preset> {
+        fun id(prefix: String, template: String) = prefix + "-" + Integer.toHexString(template.hashCode())
+        val ours = Engine.entries.flatMap { e ->
+            Strategies.candidates(e, full = true).map { c ->
+                Preset(id = id("cat-${e.id}", c.template), engine = e, name = c.name, source = PresetSource.CATALOG, template = c.template)
+            }
+        }
+        val byeByeDpi = File(context.filesDir, "external/byebyedpi.list").takeIf { it.exists() }
+            ?.readLines()?.map { it.trim() }?.filter { it.startsWith("-") }?.distinct()
+            ?.map { s ->
+                Preset(
+                    id = id("bbd", s), engine = Engine.BYEDPI, name = s, source = PresetSource.EXTERNAL,
+                    template = s, description = "ByeByeDPI",
+                )
+            } ?: emptyList()
+        return byeByeDpi + ours
+    }
+
     private fun publish() {
-        _presets.value = Strategies.builtinPresets() + storePresets + userPresets
+        _presets.value = Strategies.builtinPresets() + storePresets + userPresets + catalog
     }
 
     fun all(engine: Engine): List<Preset> = _presets.value.filter { it.engine == engine }

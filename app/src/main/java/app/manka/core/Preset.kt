@@ -3,7 +3,8 @@ package app.manka.core
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class PresetSource { BUILTIN, STORE, USER, AUTO }
+/** Also the display order of the groups on the strategies screen. */
+enum class PresetSource { BUILTIN, STORE, USER, AUTO, EXTERNAL, CATALOG }
 
 /**
  * A strategy for one engine. [template] is a command line which may still contain CDPIUI style

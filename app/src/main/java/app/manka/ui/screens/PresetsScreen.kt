@@ -35,6 +35,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,10 +43,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import app.manka.R
+import app.manka.autoselect.ExternalStrategies
 import app.manka.core.Args
 import app.manka.core.Engine
 import app.manka.core.Preset
@@ -66,6 +69,15 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: ()
     val activeId = remember(all, version) { vm.presets.active(engine, profile).id }
     var editing by remember { mutableStateOf<Preset?>(null) }
     var expanded by remember { mutableStateOf<String?>(null) }
+    var openGroups by remember { mutableStateOf(setOf<PresetSource>()) }
+    val context = LocalContext.current
+    LaunchedEffect(engine) {
+        // ByeByeDPI keeps its list on GitHub, fetch it (cached for a week) to show it here
+        if (engine == Engine.BYEDPI) {
+            ExternalStrategies.byeByeDpi(context)
+            vm.presets.reloadCatalog()
+        }
+    }
 
     ScreenScaffold(
         title = stringResource(R.string.presets_title, engine.title) + " · " + profileTitle(vm, profile),
@@ -87,21 +99,35 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: ()
             PresetSource.entries.forEach { source ->
                 val group = list.filter { it.source == source }
                 if (group.isEmpty()) return@forEach
+                val foldable = source == PresetSource.EXTERNAL || source == PresetSource.CATALOG
+                val open = !foldable || source in openGroups || group.any { it.id == activeId }
                 item(key = "h-$source") {
-                    Text(
-                        stringResource(
-                            when (source) {
-                                PresetSource.BUILTIN -> R.string.source_builtin
-                                PresetSource.STORE -> R.string.source_store
-                                PresetSource.USER -> R.string.source_user
-                                PresetSource.AUTO -> R.string.source_auto
-                            },
-                        ),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 8.dp)
+                            .clickable(enabled = foldable) { openGroups = if (source in openGroups) openGroups - source else openGroups + source },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(
+                                when (source) {
+                                    PresetSource.BUILTIN -> R.string.source_builtin
+                                    PresetSource.STORE -> R.string.source_store
+                                    PresetSource.USER -> R.string.source_user
+                                    PresetSource.AUTO -> R.string.source_auto
+                                    PresetSource.EXTERNAL -> R.string.source_external
+                                    PresetSource.CATALOG -> R.string.source_catalog
+                                },
+                            ) + if (foldable) " (${group.size})" else "",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (foldable) {
+                            Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
+                        }
+                    }
                 }
+                if (!open) return@forEach
                 items(group, key = { it.id }) { p ->
                     PresetCard(
                         vm = vm,

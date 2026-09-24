@@ -92,11 +92,13 @@
     <string name="preset_udp">UDP-порты (пусто = из настроек)</string>
     <string name="preset_ports">Порты: TCP %1$s · UDP %2$s</string>
     <string name="preset_editor_hint">Можно вставить аргументы winws из .bat-файла: --wf-tcp/--wf-udp станут портами. Подстановки: $FAKE (фейковые пакеты), $LUA, $LISTS, $EXCLUDE, $KIT, {sni}.</string>
-    <string name="presets_hint">Пресеты из магазина — это наборы CDPI UI. Результаты автоподбора сохраняются в группу «Автоподбор».</string>
+    <string name="presets_hint">Пресеты из магазина — это наборы CDPI UI, в каталоге все стратегии, которые проверяет автоподбор. Результаты автоподбора сохраняются в группу «Автоподбор».</string>
     <string name="source_builtin">Встроенные</string>
     <string name="source_store">Из магазина</string>
     <string name="source_user">Мои</string>
     <string name="source_auto">Автоподбор</string>
+    <string name="source_external">Стратегии ByeByeDPI</string>
+    <string name="source_catalog">Каталог Manka</string>
     <string name="option_default">Как в пресете</string>
     <string name="option_n">Вариант %1$d</string>
     <string name="flag_game_tcp">Игровой фильтр TCP (порты 1024-65535)</string>
