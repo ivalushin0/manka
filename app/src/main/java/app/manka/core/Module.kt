@@ -13,10 +13,17 @@ data class ModuleStatus(
     val values: Map<String, String> = emptyMap(),
 ) {
     val version get() = values["module_version"].orEmpty()
+    /** wifi / mobile / keep (VPN) / none, as the module sees it right now. */
+    val netType get() = values["net_type"]
+    val ssid get() = values["ssid"]?.takeIf { it.isNotBlank() }
+    /** Own profile key of the current network. */
+    val ownProfile get() = Profiles.keyOf(netType, ssid)
+    /** Profile the running engine was started with (may be a parent of [ownProfile]). */
+    val activeProfile get() = values["profile"]?.takeIf { it.isNotBlank() }
     val engineRunning get() = values["engine_running"] == "1"
     val rulesOk get() = values["rules_ok"] == "1"
     val tgwsRunning get() = values["tgws_running"] == "1"
-    val failed get() = values["failed"].orEmpty().split(' ').filter { it.isNotBlank() }
+    val failed get() = values["failed"].orEmpty().split(' ').filter { it.isNotBlank() && it != "netwatch" }
     val hasConnbytes get() = values["HAS_CB"] == "1"
     val hasNfqueue get() = values["HAS_NFQ"] != "0"
     val usable get() = rootOk && installed && !disabled && !pendingRemoval

@@ -17,6 +17,7 @@ FILES=$DATA/files
 RUN=$DATA/run
 LOGDIR=$DATA/logs
 ARGS=$DATA/args
+PROFILES=$DATA/profiles
 
 mkdir -p "$RUN" "$LOGDIR" "$ARGS"
 
@@ -329,32 +330,94 @@ lua_init() {
 	done
 }
 
+# ---------------------------------------------------------------- network profiles
+#   profiles/mobile.conf        mobile data
+#   profiles/wifi.conf          any Wi-Fi without its own profile
+#   profiles/wifi_<md5>.conf    one Wi-Fi network (md5 of the SSID, first 8 hex chars)
+# Each .conf sets ENGINE / TCP_PORTS / UDP_PORTS, the strategy is in the matching .args.
+
+# The network Android routes through: wifi | mobile | keep (VPN on top) | none
+current_net() {
+	_dev=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -n1)
+	[ -z "$_dev" ] && _dev=$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -n1)
+	case "$_dev" in
+		wlan*|swlan*|wifi*|eth*|p2p*) echo wifi ;;
+		tun*|ppp*|ipsec*|wg*) echo keep ;;
+		"")
+			if ip -4 addr show wlan0 2>/dev/null | grep -q 'inet '; then echo wifi; else echo none; fi
+			;;
+		*) echo mobile ;;
+	esac
+}
+
+current_ssid() {
+	_s=$(cmd wifi status 2>/dev/null | sed -n 's/.*SSID: "\([^"]*\)".*/\1/p' | head -n1)
+	[ -z "$_s" ] && _s=$(dumpsys wifi 2>/dev/null | sed -n 's/.*mWifiInfo SSID: "\([^"]*\)".*/\1/p' | head -n1)
+	case "$_s" in "<unknown ssid>") _s= ;; esac
+	printf '%s' "$_s"
+}
+
+# own profile key of the current network (the last one while on VPN / offline)
+current_key() {
+	case "$(current_net)" in
+		mobile) echo mobile ;;
+		wifi)
+			_s=$(current_ssid)
+			if [ -n "$_s" ]; then
+				echo "wifi_$(printf '%s' "$_s" | md5sum | cut -c1-8)"
+			else
+				echo wifi
+			fi
+			;;
+		*) cat "$RUN/key" 2>/dev/null || echo wifi ;;
+	esac
+}
+
+# select_profile KEY: loads the profile of KEY, or the common Wi-Fi profile
+select_profile() {
+	KEY=$1
+	_k=$KEY
+	[ -f "$PROFILES/$_k.conf" ] || _k=wifi
+	if [ -f "$PROFILES/$_k.conf" ]; then
+		. "$PROFILES/$_k.conf"
+		PROFILE=$_k
+		PROFILE_ARGS=$PROFILES/$_k.args
+	else
+		# settings written by an older app version
+		PROFILE=legacy
+		PROFILE_ARGS=$ARGS/$ENGINE.args
+	fi
+}
+
 # ---------------------------------------------------------------- engines
 
 start_engine() {
 	case "$ENGINE" in
 		zapret)
 			PKT_OUT=6; PKT_OUT_UDP=6; PKT_IN=3
-			start_daemon zapret "$BIN/nfqws" "$ARGS/zapret.args" "--qnum=$QNUM" --uid=0:0
+			start_daemon zapret "$BIN/nfqws" "$PROFILE_ARGS" "--qnum=$QNUM" --uid=0:0
 			setup_nfq "$QNUM" main
 			;;
 		zapret2)
 			PKT_OUT=20; PKT_OUT_UDP=5; PKT_IN=10
 			# shellcheck disable=SC2046
-			start_daemon zapret2 "$BIN/nfqws2" "$ARGS/zapret2.args" "--qnum=$QNUM" --uid=0:0 $(lua_init)
+			start_daemon zapret2 "$BIN/nfqws2" "$PROFILE_ARGS" "--qnum=$QNUM" --uid=0:0 $(lua_init)
 			setup_nfq "$QNUM" main
 			;;
 		byedpi)
-			start_daemon byedpi "$BIN/ciadpi" "$ARGS/byedpi.args" -E -i 127.0.0.1 -p "$BYEDPI_PORT"
+			start_daemon byedpi "$BIN/ciadpi" "$PROFILE_ARGS" -E -i 127.0.0.1 -p "$BYEDPI_PORT"
 			if [ "$IPV6" = 1 ] && [ "$HAS_NAT6" = 1 ]; then
-				start_daemon byedpi6 "$BIN/ciadpi" "$ARGS/byedpi.args" -E -i ::1 -p "$((BYEDPI_PORT + 1))"
+				start_daemon byedpi6 "$BIN/ciadpi" "$PROFILE_ARGS" -E -i ::1 -p "$((BYEDPI_PORT + 1))"
 			fi
 			setup_byedpi_rules
 			;;
 		*) return 0 ;;
 	esac
 	setup_filter
-	log "engine $ENGINE started"
+	echo "$KEY" > "$RUN/key"
+	echo "$PROFILE" > "$RUN/profile"
+	echo "$ENGINE" > "$RUN/engine"
+	log "engine $ENGINE started, profile $PROFILE ($KEY)"
 }
 
 stop_engine() {
@@ -362,6 +425,7 @@ stop_engine() {
 		stop_daemon $_n
 	done
 	remove_main_rules
+	rm -f "$RUN/engine"
 }
 
 start_tgws() {
@@ -369,12 +433,42 @@ start_tgws() {
 	log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT"
 }
 
+
+# Follows route changes (no polling) and switches the profile when the network changes.
+netwatch() {
+	_t0=$(date +%s)
+	if ! ip monitor route 2>/dev/null | while read -r _line; do
+		[ -f "$RUN/testing" ] && continue
+		[ "$(current_key)" = "$(cat "$RUN/key" 2>/dev/null)" ] && continue
+		# let the routing settle, then re-check
+		sleep 2
+		_k=$(current_key)
+		[ "$_k" = "$(cat "$RUN/key" 2>/dev/null)" ] && continue
+		log "network changed: $_k"
+		sh "$SELF" net-apply </dev/null >/dev/null 2>&1
+	done; then
+		:
+	fi
+	# ip monitor ended after working for a while: let the supervisor restart it
+	[ $(( $(date +%s) - _t0 )) -gt 60 ] && exit 1
+	# ip monitor is unavailable: stay idle instead of being restarted in a loop
+	log "ip monitor unavailable, automatic profile switching is off"
+	while :; do sleep 86400; done
+}
+
 # ---------------------------------------------------------------- commands
 
 cmd_start() {
 	probe_caps
+	rm -f "$RUN/testing"
 	stop_engine
-	[ "$ENABLED" = 1 ] && start_engine
+	if [ "$ENABLED" = 1 ]; then
+		select_profile "$(current_key)"
+		start_engine
+		is_running netwatch || start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
+	else
+		stop_daemon netwatch
+	fi
 	if [ "$TGWS" = 1 ]; then
 		is_running tgws || start_tgws
 	else
@@ -383,21 +477,44 @@ cmd_start() {
 	cmd_status
 }
 
+# restart the engine only if the network (profile) changed
+cmd_net_apply() {
+	[ "$ENABLED" = 1 ] || return 0
+	[ -f "$RUN/testing" ] && return 0
+	load_caps
+	_k=$(current_key)
+	if [ "$_k" = "$(cat "$RUN/key" 2>/dev/null)" ] && [ -f "$RUN/engine" ] && is_running "$(cat "$RUN/engine")"; then
+		return 0
+	fi
+	stop_engine
+	select_profile "$_k"
+	start_engine
+}
+
 cmd_stop() {
+	stop_daemon netwatch
 	stop_engine
 	remove_test_rules
 	stop_daemon test
 	stop_daemon tgws
+	rm -f "$RUN/testing"
 	log "stopped"
 	cmd_status
 }
 
 cmd_status() {
 	load_caps
+	_running_engine=$(cat "$RUN/engine" 2>/dev/null)
+	[ -n "$_running_engine" ] && ENGINE=$_running_engine
 	echo "module_dir=$MODDIR"
 	echo "module_version=$(sed -n 's/^version=//p' "$MODDIR/module.prop" 2>/dev/null)"
 	echo "enabled=$ENABLED"
 	echo "engine=$ENGINE"
+	echo "profile=$(cat "$RUN/profile" 2>/dev/null)"
+	echo "key=$(cat "$RUN/key" 2>/dev/null)"
+	_nt=$(current_net)
+	echo "net_type=$_nt"
+	[ "$_nt" = wifi ] && echo "ssid=$(current_ssid)"
 	_er=0
 	case "$ENGINE" in
 		zapret|zapret2|byedpi) is_running "$ENGINE" && _er=1 ;;
@@ -410,6 +527,9 @@ cmd_status() {
 	is_running tgws && _tr=1
 	echo "tgws=$TGWS"
 	echo "tgws_running=$_tr"
+	_nw=0
+	is_running netwatch && _nw=1
+	echo "netwatch_running=$_nw"
 	_failed=
 	for _f in "$RUN"/*.failed; do
 		[ -f "$_f" ] || continue
@@ -422,6 +542,7 @@ cmd_status() {
 
 cmd_test_start() {
 	_engine=$1; _af=$2; _uid=$3
+	touch "$RUN/testing"
 	stop_engine
 	stop_daemon test
 	load_caps
@@ -456,7 +577,12 @@ cmd_test_stop() {
 cmd_boot() {
 	log "boot"
 	probe_caps
-	[ "$ENABLED" = 1 ] && start_engine
+	rm -f "$RUN/testing" "$RUN/key" "$RUN/profile"
+	if [ "$ENABLED" = 1 ]; then
+		select_profile "$(current_key)"
+		start_engine
+		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
+	fi
 	[ "$TGWS" = 1 ] && start_tgws
 }
 
@@ -464,12 +590,14 @@ case "$1" in
 	start|restart|apply) cmd_start ;;
 	stop) cmd_stop ;;
 	engine-stop)
-		# stop DPI bypass only, TG WS Proxy keeps running
+		# stop DPI bypass only (auto selection), TG WS Proxy keeps running
+		touch "$RUN/testing"
 		stop_daemon test
 		remove_test_rules
 		stop_engine
 		echo ok
 		;;
+	net-apply) cmd_net_apply ;;
 	status) cmd_status ;;
 	boot) cmd_boot ;;
 	tgws-restart)
@@ -480,8 +608,9 @@ case "$1" in
 	test-start) shift; cmd_test_start "$@" ;;
 	test-stop) cmd_test_stop ;;
 	_supervise) shift; supervise "$@" ;;
+	_netwatch) netwatch ;;
 	*)
-		echo "usage: $0 start|stop|restart|status|boot|tgws-restart|test-start ENGINE ARGSFILE UID|test-stop"
+		echo "usage: $0 start|stop|restart|status|boot|net-apply|tgws-restart|test-start ENGINE ARGSFILE UID|test-stop"
 		exit 1
 		;;
 esac

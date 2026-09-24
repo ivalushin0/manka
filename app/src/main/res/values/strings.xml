@@ -45,6 +45,11 @@
     <string name="toggle_bypass">Turn bypass on or off</string>
     <string name="state_off">Bypass is off</string>
     <string name="state_on">Bypass is on · %1$s</string>
+    <string name="state_on_net">Bypass is on · %1$s · %2$s</string>
+    <string name="profile">Network profile</string>
+    <string name="profile_hint">Each network has its own engine and strategy. Now: %1$s (•). Manka switches the profile by itself when the network changes.</string>
+    <string name="net_wifi">Wi-Fi</string>
+    <string name="net_mobile">Mobile</string>
     <string name="state_starting">Starting…</string>
     <string name="state_failed">Engine failed to start: %1$s. Check the strategy or the logs.</string>
     <string name="engine_failed">%1$s did not start. Try another strategy or open the logs.</string>
@@ -116,6 +121,8 @@
     <string name="auto_quick_hint">About 20 proven strategies, stops after 3 perfect ones. A couple of minutes.</string>
     <string name="auto_full_hint">The whole catalogue (60-100 strategies). Can take 10-20 minutes.</string>
     <string name="auto_include_store">Also test installed store presets</string>
+    <string name="auto_byebyedpi">ByeByeDPI strategies</string>
+    <string name="auto_byebyedpi_hint">Also test the strategy list of the ByeByeDPI app (downloaded from its GitHub, refreshed weekly)</string>
     <string name="auto_requests">Requests per site: %1$d</string>
     <string name="auto_start">Start</string>
     <string name="auto_stop">Stop</string>
@@ -130,6 +137,7 @@
     <string name="auto_running_hint">You can leave this screen, the test continues.</string>
     <string name="auto_baseline">Without bypass %1$d of %2$d sites open</string>
     <string name="auto_blocked_list">Blocked (✗ = does not open):</string>
+    <string name="auto_blocked_count">%1$d blocked — tap to show</string>
     <string name="seconds_short">%1$ds</string>
     <string name="auto_nothing_blocked">All sites open without bypass — nothing to fix for this list.</string>
     <string name="auto_best">Best result: %1$d%%</string>
@@ -201,4 +209,21 @@
     <string name="notify_degraded">The strategy stopped working: only %1$d%% of sites open. Open Manka to select a new one.</string>
     <string name="notify_reselected">The strategy was re-selected automatically: %1$d%% of sites open.</string>
     <string name="notify_reselect_failed">Sites stopped opening (%1$d%%) and no better strategy was found.</string>
+
+    <!-- network profiles / history / all engines -->
+    <string name="net_wifi_other">Other Wi-Fi</string>
+    <string name="profile_inherits">This network has no settings of its own yet and uses the common Wi-Fi profile. Pick an engine or strategy (or run auto select here) to give it its own.</string>
+    <string name="profile_forget">Forget this network</string>
+    <string name="auto_for_net">The result is saved to the profile: %1$s</string>
+    <string name="auto_all_engines">All</string>
+    <string name="auto_all_hint">Tests zapret2, zapret and ByeDPI one after another and tells which engine suits this network best. Takes longer.</string>
+    <string name="auto_recommend_title">Best for %1$s</string>
+    <string name="auto_recommend">Use %1$s: %2$d%% of requests pass</string>
+    <string name="auto_engine_best">%1$s: best %2$d%% · %3$d ms</string>
+    <string name="auto_engine_none">%1$s: nothing worked</string>
+    <string name="auto_recommend_apply">Use %1$s for this network</string>
+    <string name="history_title">Selection history</string>
+    <string name="history_empty">No saved selections yet. Every selection that finds a working strategy appears here.</string>
+    <string name="history_summary">Best %1$d%% · %2$d working of %3$d tested</string>
+    <string name="history_apply_hint">Apply puts the strategy into the profile: %1$s.</string>
 </resources>

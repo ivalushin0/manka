@@ -20,6 +20,7 @@ object Paths {
     const val SCRIPT = "$MODULE/manka.sh"
     const val DATA = "/data/adb/manka"
     const val ARGS = "$DATA/args"
+    const val PROFILES = "$DATA/profiles"
     const val FILES = "$DATA/files"
     const val FAKE = "$FILES/fake"
     const val LUA = "$FILES/lua"

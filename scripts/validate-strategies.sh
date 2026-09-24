@@ -64,5 +64,13 @@ check() { # engine file
 
 check zapret "$LISTS/zapret.txt"
 check zapret2 "$LISTS/zapret2.txt"
+check zapret2 "$LISTS/zapret2-legacy.txt"
 check byedpi "$LISTS/byedpi.txt"
-exit $fail
+
+# ByeByeDPI list is downloaded by the app at run time; report problems without failing the build
+hard_fail=$fail
+if curl -fsSL https://raw.githubusercontent.com/romanvht/ByeByeDPI/master/app/src/main/assets/proxytest_strategies.list -o "$WORK/bbd.raw"; then
+	grep -E '^-' "$WORK/bbd.raw" | sed 's/{sni}/www.google.com/g' | tr ' ' '\037' > "$WORK/byebyedpi.txt"
+	check byedpi "$WORK/byebyedpi.txt"
+fi
+exit $hard_fail

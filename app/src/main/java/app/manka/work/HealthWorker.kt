@@ -22,6 +22,7 @@ import app.manka.autoselect.AutoRequest
 import app.manka.autoselect.SiteChecker
 import app.manka.autoselect.Targets
 import app.manka.core.Module
+import app.manka.core.Profiles
 import app.manka.core.Prefs
 import java.util.concurrent.TimeUnit
 
@@ -38,7 +39,11 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
         var status = Module.status()
         if (!status.usable) return Result.success()
-        val engineBroken = prefs.enabled && (!status.engineRunning || !status.rulesOk)
+        // the network changed and the module did not notice (netwatch unavailable)
+        val runningKey = status.values["key"].orEmpty()
+        val netMismatch = (status.netType == "wifi" || status.netType == "mobile") &&
+            runningKey.isNotEmpty() && runningKey != status.ownProfile
+        val engineBroken = prefs.enabled && (!status.engineRunning || !status.rulesOk || netMismatch)
         val tgwsBroken = prefs.tgws && !status.tgwsRunning
         if (engineBroken || tgwsBroken) {
             app.applier.apply()
@@ -46,6 +51,8 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         }
         if (!prefs.enabled || app.autoSelector.state.value.running) return Result.success()
 
+        val profile = status.ownProfile
+        val engine = prefs.engine(profile)
         val targets = prefs.healthTargets.ifEmpty { Targets.groups.first { it.id == "youtube" }.urls }
         val sites = SiteChecker().check(targets, 1, prefs.autoTimeoutSec)
         val ok = sites.sumOf { it.ok }
@@ -54,7 +61,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         prefs.lastCheckTime = System.currentTimeMillis()
         prefs.lastCheckRate = rate
 
-        val expected = prefs.baselineRate.takeIf { it > 0 } ?: 100
+        val expected = prefs.baselineRate(profile).takeIf { it > 0 } ?: 100
         val degraded = rate < 50 && rate < expected - 25
         if (!degraded) return Result.success()
 
@@ -64,7 +71,9 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         }
         val final = app.autoSelector.run(
             AutoRequest(
-                engine = prefs.engine,
+                engines = listOf(engine),
+                profile = profile,
+                profileLabel = status.ssid,
                 targets = targets,
                 full = false,
                 includeStore = true,
@@ -74,7 +83,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         )
         val best = final.best
         if (best != null && best.percent > rate) {
-            app.autoSelector.applyResult(best, prefs.engine)
+            app.autoSelector.applyResult(best, profile, status.ssid)
             notify(applicationContext, applicationContext.getString(R.string.notify_reselected, best.percent))
         } else {
             notify(applicationContext, applicationContext.getString(R.string.notify_reselect_failed, rate))

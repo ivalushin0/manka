@@ -1,5 +1,6 @@
 package app.manka.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,12 +13,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +55,8 @@ import app.manka.autoselect.SiteResult
 import app.manka.autoselect.StrategyResult
 import app.manka.autoselect.Targets
 import app.manka.core.Engine
+import app.manka.core.Profiles
+import androidx.navigation.NavHostController
 import app.manka.ui.Hint
 import app.manka.ui.MainViewModel
 import app.manka.ui.Mono
@@ -58,20 +65,24 @@ import app.manka.ui.SectionCard
 import app.manka.ui.SwitchRow
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun AutoSelectScreen(vm: MainViewModel) {
+fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
     val state by vm.autoSelector.state.collectAsState()
     val status by vm.status.collectAsState()
     val busy by vm.busy.collectAsState()
     val prefs = vm.prefs
     val scope = rememberCoroutineScope()
+    val profile = status.ownProfile
+    val historyRuns by vm.autoSelector.history.runs.collectAsState()
 
-    var engine by remember { mutableStateOf(prefs.engine) }
+    // null = all engines
+    var engine by remember { mutableStateOf<Engine?>(prefs.engine(profile)) }
     var groups by remember { mutableStateOf(prefs.autoGroups) }
     var custom by remember { mutableStateOf(prefs.customSites) }
     var full by remember { mutableStateOf(prefs.autoFullMode) }
     var includeStore by remember { mutableStateOf(prefs.autoIncludeStore) }
+    var byeByeDpi by remember { mutableStateOf(prefs.autoByeByeDpi) }
     var requests by remember { mutableStateOf(prefs.autoRequests) }
     var loadingSuite by remember { mutableStateOf(false) }
 
@@ -80,6 +91,7 @@ fun AutoSelectScreen(vm: MainViewModel) {
         prefs.customSites = custom
         prefs.autoFullMode = full
         prefs.autoIncludeStore = includeStore
+        prefs.autoByeByeDpi = byeByeDpi
         prefs.autoRequests = requests
         scope.launch {
             val urls = Targets.groups.filter { it.id in groups }.flatMap { it.urls }.toMutableList()
@@ -95,33 +107,49 @@ fun AutoSelectScreen(vm: MainViewModel) {
             }
             vm.autoSelector.start(
                 AutoRequest(
-                    engine = engine,
+                    engines = engine?.let { listOf(it) } ?: Engine.entries.toList(),
+                    profile = vm.status.value.ownProfile,
+                    profileLabel = vm.status.value.ssid,
                     targets = urls.distinct(),
                     full = full,
                     includeStore = includeStore,
                     requests = requests,
                     timeoutSec = prefs.autoTimeoutSec,
                     stopAfterPerfect = if (full) 0 else 3,
+                    byeByeDpi = byeByeDpi,
                 ),
             )
         }
     }
 
-    ScreenScaffold(title = stringResource(R.string.auto_title), busy = busy) { pad ->
+    ScreenScaffold(
+        title = stringResource(R.string.auto_title),
+        busy = busy,
+        actions = {
+            IconButton(onClick = { nav.navigate("history") }) {
+                BadgedBox(badge = { if (historyRuns.isNotEmpty()) Badge { Text(historyRuns.size.toString()) } }) {
+                    Icon(Icons.Filled.History, stringResource(R.string.history_title))
+                }
+            }
+        },
+    ) { pad ->
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!state.running && state.phase != Phase.DONE && state.phase != Phase.CANCELLED) {
                 item {
                     SectionCard(title = stringResource(R.string.engine)) {
+                        val options = Engine.entries + listOf<Engine?>(null)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                            Engine.entries.forEachIndexed { i, e ->
+                            options.forEachIndexed { i, e ->
                                 SegmentedButton(
                                     selected = engine == e,
                                     onClick = { engine = e },
-                                    shape = SegmentedButtonDefaults.itemShape(i, Engine.entries.size),
-                                ) { Text(e.title) }
+                                    shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                                    icon = {},
+                                ) { Text(e?.title ?: stringResource(R.string.auto_all_engines)) }
                             }
                         }
-                        Hint(stringResource(R.string.auto_engine_hint))
+                        Hint(stringResource(if (engine == null) R.string.auto_all_hint else R.string.auto_engine_hint))
+                        Text(stringResource(R.string.auto_for_net, profileTitle(vm, profile)), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 item {
@@ -170,6 +198,14 @@ fun AutoSelectScreen(vm: MainViewModel) {
                                 onChange = { includeStore = it },
                             )
                         }
+                        if (engine == null || engine == Engine.BYEDPI) {
+                            SwitchRow(
+                                title = stringResource(R.string.auto_byebyedpi),
+                                subtitle = stringResource(R.string.auto_byebyedpi_hint),
+                                checked = byeByeDpi,
+                                onChange = { byeByeDpi = it },
+                            )
+                        }
                         Text(stringResource(R.string.auto_requests, requests))
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                             listOf(1, 2, 3).forEachIndexed { i, n ->
@@ -191,21 +227,11 @@ fun AutoSelectScreen(vm: MainViewModel) {
                 }
             } else {
                 item { ProgressCard(state, onStop = { vm.autoSelector.cancel() }, onNew = { vm.autoSelector.reset() }) }
+                if (state.allEngines && !state.running && state.bestByEngine.isNotEmpty()) {
+                    item { RecommendationCard(vm, state) }
+                }
                 if (state.baseline.isNotEmpty()) {
-                    item {
-                        SectionCard(
-                            title = stringResource(
-                                R.string.auto_baseline,
-                                state.baseline.count { it.ok > 0 },
-                                state.baseline.size,
-                            ),
-                        ) {
-                            val blocked = state.baseline.filter { it.ok == 0 }
-                            if (blocked.isNotEmpty()) Text(stringResource(R.string.auto_blocked_list))
-                            blocked.forEach { Hint("✗ " + it.url) }
-                            if (state.baseline.all { it.ok > 0 }) Hint(stringResource(R.string.auto_nothing_blocked))
-                        }
-                    }
+                    item { BaselineCard(state) }
                 }
                 val sorted = state.sorted
                 itemsIndexed(sorted, key = { i, r -> "$i-${r.candidate.name.hashCode()}" }) { i, r ->
@@ -213,9 +239,10 @@ fun AutoSelectScreen(vm: MainViewModel) {
                         rank = i + 1,
                         result = r,
                         canApply = !state.running && r.percent > 0,
+                        showEngine = state.allEngines,
                         onApply = {
-                            val e = state.engine ?: return@ResultCard
-                            vm.op { vm.autoSelector.applyResult(r, e) }
+                            val p = state.profile ?: profile
+                            vm.op { vm.autoSelector.applyResult(r, p, state.profileLabel) }
                             vm.say(R.string.auto_applied)
                         },
                     )
@@ -242,7 +269,7 @@ private fun ProgressCard(state: AutoState, onStop: () -> Unit, onNew: () -> Unit
                 progress = { if (state.total == 0) 0f else state.current.toFloat() / state.total },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Mono(state.currentName, maxLines = 2)
+            Mono((state.currentEngine?.let { it.title + " · " } ?: "") + state.currentName, maxLines = 2)
             Button(
                 onClick = onStop,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -260,7 +287,7 @@ private fun ProgressCard(state: AutoState, onStop: () -> Unit, onNew: () -> Unit
 }
 
 @Composable
-private fun ResultCard(rank: Int, result: StrategyResult, canApply: Boolean, onApply: () -> Unit) {
+private fun ResultCard(rank: Int, result: StrategyResult, canApply: Boolean, showEngine: Boolean, onApply: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     val color = when {
         result.startFailed -> MaterialTheme.colorScheme.errorContainer
@@ -278,6 +305,7 @@ private fun ResultCard(rank: Int, result: StrategyResult, canApply: Boolean, onA
                         else stringResource(R.string.auto_result, result.percent, result.ok, result.total, result.avgMs),
                         style = MaterialTheme.typography.titleSmall,
                     )
+                    if (showEngine) Text(result.engine.title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     Mono(result.candidate.name, maxLines = if (open) Int.MAX_VALUE else 2)
                 }
                 IconButton(onClick = { open = !open }) {
@@ -304,4 +332,65 @@ private fun ResultCard(rank: Int, result: StrategyResult, canApply: Boolean, onA
 private fun SiteLine(s: SiteResult) {
     val mark = if (s.ok == s.total) "✓" else if (s.ok == 0) "✗" else "~"
     Hint("$mark ${s.ok}/${s.total}  ${s.url}" + (s.error?.let { "  — $it" } ?: ""))
+}
+
+/** "Without bypass X of Y sites open"; the list of blocked sites is folded until tapped. */
+@Composable
+private fun BaselineCard(state: AutoState) {
+    var open by remember { mutableStateOf(false) }
+    val blocked = state.baseline.filter { it.ok == 0 }
+    SectionCard {
+        Row(
+            Modifier.fillMaxWidth().clickable(enabled = blocked.isNotEmpty()) { open = !open },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.auto_baseline, state.baseline.count { it.ok > 0 }, state.baseline.size),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            if (blocked.isNotEmpty()) {
+                Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
+            }
+        }
+        if (blocked.isEmpty()) {
+            Hint(stringResource(R.string.auto_nothing_blocked))
+        } else if (open) {
+            Text(stringResource(R.string.auto_blocked_list))
+            blocked.forEach { Hint("✗ " + it.url) }
+        } else {
+            Hint(stringResource(R.string.auto_blocked_count, blocked.size))
+        }
+    }
+}
+
+/** "All engines": which engine works best on this network, with one-tap apply. */
+@Composable
+private fun RecommendationCard(vm: MainViewModel, state: AutoState) {
+    val best = state.bestByEngine
+    val winner = best.first()
+    SectionCard(
+        title = stringResource(R.string.auto_recommend_title, profileTitle(vm, state.profile ?: Profiles.WIFI)),
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Text(
+            stringResource(R.string.auto_recommend, winner.engine.title, winner.percent),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        best.forEach { r ->
+            Hint(stringResource(R.string.auto_engine_best, r.engine.title, r.percent, r.avgMs))
+        }
+        state.engines.filter { e -> best.none { it.engine == e } }.forEach { e ->
+            Hint(stringResource(R.string.auto_engine_none, e.title))
+        }
+        Button(onClick = {
+            vm.op { vm.autoSelector.applyResult(winner, state.profile ?: Profiles.WIFI, state.profileLabel) }
+            vm.say(R.string.auto_applied)
+        }) {
+            Icon(Icons.Filled.Check, null)
+            Text(stringResource(R.string.auto_recommend_apply, winner.engine.title), Modifier.padding(start = 6.dp))
+        }
+    }
 }

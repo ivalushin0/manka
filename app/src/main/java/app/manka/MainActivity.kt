@@ -45,6 +45,8 @@ import app.manka.core.Engine
 import app.manka.ui.MainViewModel
 import app.manka.ui.screens.AppsScreen
 import app.manka.ui.screens.AutoSelectScreen
+import app.manka.ui.screens.HistoryRunScreen
+import app.manka.ui.screens.HistoryScreen
 import app.manka.ui.screens.HomeScreen
 import app.manka.ui.screens.LogsScreen
 import app.manka.ui.screens.PresetsScreen
@@ -120,18 +122,29 @@ private fun MankaNav(vm: MainViewModel) {
     ) { padding ->
         NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding)) {
             composable("home") { HomeScreen(vm, nav) }
-            composable("auto") { AutoSelectScreen(vm) }
+            composable("auto") { AutoSelectScreen(vm, nav) }
             composable("store") { StoreScreen(vm) }
             composable("settings") { SettingsScreen(vm, nav) }
             composable("telegram") { TelegramScreen(vm) { nav.popBackStack() } }
             composable("apps") { AppsScreen(vm) { nav.popBackStack() } }
             composable("logs") { LogsScreen(vm) { nav.popBackStack() } }
             composable(
-                "presets/{engine}",
-                arguments = listOf(navArgument("engine") { type = NavType.StringType }),
+                "presets/{engine}/{net}",
+                arguments = listOf(
+                    navArgument("engine") { type = NavType.StringType },
+                    navArgument("net") { type = NavType.StringType },
+                ),
             ) { e ->
                 val engine = Engine.of(e.arguments?.getString("engine")) ?: Engine.BYEDPI
-                PresetsScreen(vm, engine) { nav.popBackStack() }
+                val profile = e.arguments?.getString("net") ?: "wifi"
+                PresetsScreen(vm, engine, profile) { nav.popBackStack() }
+            }
+            composable("history") { HistoryScreen(vm, nav) { nav.popBackStack() } }
+            composable(
+                "history/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.StringType }),
+            ) { e ->
+                HistoryRunScreen(vm, e.arguments?.getString("id").orEmpty()) { nav.popBackStack() }
             }
         }
     }

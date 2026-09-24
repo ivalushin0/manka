@@ -6,7 +6,9 @@ import app.manka.core.Engine
 import app.manka.core.Preset
 import app.manka.core.PresetFlag
 import app.manka.core.PresetOption
+import app.manka.core.PresetRenderer
 import app.manka.core.PresetSource
+import app.manka.core.Z1ToZ2
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -75,7 +77,7 @@ object KitLoader {
         val kitName = kitName(kitDir) ?: kitId
         val files = kitDir.listFiles { f -> f.isFile && f.name.endsWith(".json") && f.name != "init.json" && f.name != "manka-kit.json" }
             ?.sortedBy { it.name.lowercase() } ?: return emptyList()
-        return files.mapNotNull { f ->
+        val native = files.mapNotNull { f ->
             val o = runCatching { json.parseToJsonElement(f.readText()).jsonObject }.getOrNull() ?: return@mapNotNull null
             val meta = o["meta"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
             if (!meta.startsWith("IC:") && !meta.startsWith("UC:")) return@mapNotNull null
@@ -121,5 +123,18 @@ object KitLoader {
                 flags = flags,
             )
         }
+        // zapret presets also run on zapret2 through the CDPI UI compatible converter
+        val legacy = native.filter { it.engine == Engine.ZAPRET }.mapNotNull { p ->
+            val z2 = p.copy(
+                id = p.id + "-z2",
+                engine = Engine.ZAPRET2,
+                description = "$kitName · LEGACY",
+                convertFrom = Engine.ZAPRET,
+            )
+            // render with default options: variables and conditions resolved
+            val source = PresetRenderer.render(p, null).args
+            z2.takeIf { runCatching { Z1ToZ2.convert(source).errors.isEmpty() }.getOrDefault(false) }
+        }
+        return native + legacy
     }
 }

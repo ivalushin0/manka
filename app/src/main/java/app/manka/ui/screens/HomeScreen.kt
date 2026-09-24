@@ -8,6 +8,8 @@ import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -46,6 +50,7 @@ import androidx.navigation.NavHostController
 import app.manka.R
 import app.manka.core.Engine
 import app.manka.core.Module
+import app.manka.core.Profiles
 import app.manka.switchTab
 import app.manka.ui.Hint
 import app.manka.ui.MainViewModel
@@ -53,6 +58,7 @@ import app.manka.ui.ScreenScaffold
 import app.manka.ui.SectionCard
 import app.manka.ui.SwitchRow
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
     val status by vm.status.collectAsState()
@@ -63,6 +69,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
     val context = LocalContext.current
     val prefs = vm.prefs
     val bundledVersion = remember { Module.bundledVersionCode(context) }
+    val pickedProfile by vm.pickedProfile.collectAsState()
 
     ScreenScaffold(
         title = stringResource(R.string.app_name),
@@ -111,6 +118,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
             }
 
             // ---- power
+            val own = status.ownProfile
+            val engine = prefs.engine(own)
             val running = prefs.enabled && status.engineRunning && status.rulesOk
             SectionCard {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -129,24 +138,47 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                     Spacer(Modifier.size(12.dp))
                     val stateText = when {
                         !prefs.enabled -> stringResource(R.string.state_off)
-                        running -> stringResource(R.string.state_on, prefs.engine.title)
+                        running -> stringResource(
+                            R.string.state_on_net,
+                            (Engine.of(status.values["engine"]) ?: engine).title,
+                            profileTitle(vm, own),
+                        )
                         status.failed.isNotEmpty() -> stringResource(R.string.state_failed, status.failed.joinToString())
                         else -> stringResource(R.string.state_starting)
                     }
                     Text(stateText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    if (prefs.enabled && status.usable && !status.hasNfqueue && prefs.engine != Engine.BYEDPI) {
+                    if (prefs.enabled && status.usable && !status.hasNfqueue && engine != Engine.BYEDPI) {
                         Hint(stringResource(R.string.no_nfqueue))
                     }
                 }
             }
 
-            // ---- engine
-            SectionCard(title = stringResource(R.string.engine)) {
+            // ---- network profile: engine + strategy
+            val picked = pickedProfile ?: own
+            val keys = remember(prefsVersion, own) {
+                (listOf(own, Profiles.MOBILE, Profiles.WIFI) + prefs.knownWifi.keys.sorted()).distinct()
+            }
+            SectionCard(title = stringResource(R.string.profile)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    keys.forEach { key ->
+                        FilterChip(
+                            selected = picked == key,
+                            onClick = { vm.pickedProfile.value = key },
+                            label = { Text(profileTitle(vm, key) + if (key == own) " •" else "") },
+                        )
+                    }
+                }
+                Hint(stringResource(R.string.profile_hint, profileTitle(vm, own)))
+                if (Profiles.isSsid(picked) && !prefs.hasOwnEngine(picked)) {
+                    Hint(stringResource(R.string.profile_inherits))
+                }
+                val pEngine = prefs.engine(picked)
+                Text(stringResource(R.string.engine), style = MaterialTheme.typography.titleSmall)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     Engine.entries.forEachIndexed { i, e ->
                         SegmentedButton(
-                            selected = prefs.engine == e,
-                            onClick = { vm.setEngine(e) },
+                            selected = pEngine == e,
+                            onClick = { vm.setEngine(picked, e) },
                             shape = SegmentedButtonDefaults.itemShape(i, Engine.entries.size),
                             enabled = !busy,
                         ) { Text(e.title) }
@@ -154,20 +186,23 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                 }
                 Hint(
                     stringResource(
-                        when (prefs.engine) {
+                        when (pEngine) {
                             Engine.ZAPRET2 -> R.string.engine_zapret2_hint
                             Engine.ZAPRET -> R.string.engine_zapret_hint
                             Engine.BYEDPI -> R.string.engine_byedpi_hint
                         },
                     ),
                 )
-                val active = remember(presetsList, prefs.engine, prefsVersion) { vm.presets.active(prefs.engine) }
+                val active = remember(presetsList, pEngine, picked, prefsVersion) { vm.presets.active(pEngine, picked) }
                 Text(stringResource(R.string.strategy_current, active.name), style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { nav.navigate("presets/${prefs.engine.id}") }) {
+                    OutlinedButton(onClick = { nav.navigate("presets/${pEngine.id}/$picked") }) {
                         Text(stringResource(R.string.strategy_choose))
                     }
                     Button(onClick = { nav.switchTab("auto") }) { Text(stringResource(R.string.strategy_autoselect)) }
+                }
+                if (Profiles.isSsid(picked) && prefs.knownWifi.containsKey(picked)) {
+                    TextButton(onClick = { vm.forgetWifi(picked) }) { Text(stringResource(R.string.profile_forget)) }
                 }
                 if (prefs.lastCheckTime > 0 && prefs.lastCheckRate >= 0) {
                     Hint(
@@ -217,4 +252,14 @@ fun openTelegram(context: Context, vm: MainViewModel) {
         cm.setPrimaryClip(ClipData.newPlainText("tg proxy", link))
         vm.say(R.string.tgws_link_copied)
     }
+}
+
+/** Human name of a network profile: "Mobile", "Other Wi-Fi" or the SSID. */
+@Composable
+fun profileTitle(vm: MainViewModel, key: String): String = when {
+    key == Profiles.MOBILE -> stringResource(R.string.net_mobile)
+    key == Profiles.WIFI -> stringResource(R.string.net_wifi_other)
+    else -> vm.prefs.knownWifi[key]
+        ?: vm.status.value.ssid?.takeIf { Profiles.wifiKey(it) == key }
+        ?: stringResource(R.string.net_wifi)
 }

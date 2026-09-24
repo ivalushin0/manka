@@ -3,7 +3,12 @@ package app.manka.core
 /** Built-in presets and the strategy catalogue used by auto selection. */
 object Strategies {
 
-    data class Candidate(val name: String, val template: String, val preset: Preset? = null)
+    data class Candidate(
+        val name: String,
+        val template: String,
+        val preset: Preset? = null,
+        val engine: Engine = preset?.engine ?: Engine.BYEDPI,
+    )
 
     // ------------------------------------------------------------------ full command lines
 
@@ -71,7 +76,7 @@ object Strategies {
             Engine.ZAPRET2 -> if (full) zapret2Full() else ZAPRET2_QUICK
             Engine.BYEDPI -> if (full) byedpiFull() else BYEDPI_QUICK
         }
-        return tls.distinct().map { Candidate(name = it, template = compose(engine, it)) }
+        return tls.distinct().map { Candidate(name = it, template = compose(engine, it), engine = engine) }
     }
 
     private val ZAPRET_QUICK = listOf(

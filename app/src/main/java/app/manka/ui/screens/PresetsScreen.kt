@@ -58,17 +58,17 @@ import app.manka.ui.ScreenScaffold
 import app.manka.ui.SwitchRow
 
 @Composable
-fun PresetsScreen(vm: MainViewModel, engine: Engine, onBack: () -> Unit) {
+fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: () -> Unit) {
     val all by vm.presets.presets.collectAsState()
     val busy by vm.busy.collectAsState()
     val version by vm.prefs.version.collectAsState()
     val list = remember(all, engine) { all.filter { it.engine == engine } }
-    val activeId = remember(all, version) { vm.presets.active(engine).id }
+    val activeId = remember(all, version) { vm.presets.active(engine, profile).id }
     var editing by remember { mutableStateOf<Preset?>(null) }
     var expanded by remember { mutableStateOf<String?>(null) }
 
     ScreenScaffold(
-        title = stringResource(R.string.presets_title, engine.title),
+        title = stringResource(R.string.presets_title, engine.title) + " · " + profileTitle(vm, profile),
         onBack = onBack,
         busy = busy,
         floating = {
@@ -109,7 +109,7 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, onBack: () -> Unit) {
                         active = p.id == activeId,
                         expanded = expanded == p.id,
                         onExpand = { expanded = if (expanded == p.id) null else p.id },
-                        onSelect = { vm.selectPreset(engine, p.id) },
+                        onSelect = { vm.selectPreset(engine, profile, p.id) },
                         onEdit = { editing = it },
                     )
                 }
@@ -125,7 +125,7 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, onBack: () -> Unit) {
             onSave = { saved ->
                 vm.presets.save(saved)
                 editing = null
-                if (saved.id == vm.prefs.activePreset(engine) && vm.prefs.enabled && vm.prefs.engine == engine) vm.apply()
+                if (saved.id == vm.prefs.activePreset(engine, profile) && vm.prefs.enabled) vm.apply()
             },
         )
     }

@@ -13,7 +13,7 @@ class Applier(
 ) {
     data class EngineConfig(val args: List<String>, val tcpPorts: String, val udpPorts: String)
 
-    fun engineConfig(engine: Engine, preset: Preset = presets.active(engine)): EngineConfig {
+    fun engineConfig(engine: Engine, preset: Preset): EngineConfig {
         val rendered = PresetRenderer.render(preset, prefs)
         val args = Args.resolve(
             rendered.args,
@@ -49,14 +49,17 @@ class Applier(
         return out
     }
 
-    private fun settingsConf(engine: EngineConfig?, uids: List<Int>): String = buildString {
+    private fun profileConf(key: String, cfg: EngineConfig) = buildString {
+        appendLine("ENGINE=${prefs.engine(key).id}")
+        appendLine("TCP_PORTS=${cfg.tcpPorts}")
+        appendLine("UDP_PORTS=${cfg.udpPorts}")
+    }
+
+    private fun settingsConf(uids: List<Int>): String = buildString {
         fun kv(k: String, v: Any) = appendLine("$k=$v")
         kv("ENABLED", if (prefs.enabled) 1 else 0)
-        kv("ENGINE", prefs.engine.id)
         kv("TGWS", if (prefs.tgws) 1 else 0)
         kv("TGWS_PORT", prefs.tgwsPort)
-        kv("TCP_PORTS", engine?.tcpPorts ?: "80,443")
-        kv("UDP_PORTS", engine?.udpPorts ?: "")
         kv("BYEDPI_PORTS", Args.ports(prefs.byedpiPorts).ifEmpty { "80,443" })
         kv("BLOCK_QUIC", if (prefs.blockQuic) 1 else 0)
         kv("IPV6", if (prefs.ipv6) 1 else 0)
@@ -75,14 +78,26 @@ class Applier(
         return Module.start()
     }
 
+    /** Engine + active strategy of a network profile (inherited from the parent profile if not set). */
+    fun profileConfig(key: String): EngineConfig {
+        val engine = prefs.engine(key)
+        return engineConfig(engine, presets.active(engine, key))
+    }
+
+    fun profileKeys(): List<String> = listOf(Profiles.WIFI, Profiles.MOBILE) + prefs.knownWifi.keys.sorted()
+
     suspend fun writeConfig() {
-        val engine = prefs.engine
-        val cfg = engineConfig(engine)
         val files = linkedMapOf(
-            "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(cfg, excludedUids())),
-            "${Paths.ARGS}/${engine.id}.args" to argsFile("${engine.id}.args", cfg.args),
+            "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(excludedUids())),
             "${Paths.ARGS}/tgws.args" to argsFile("tgws.args", tgwsArgs()),
         )
+        for (key in profileKeys()) {
+            val cfg = profileConfig(key)
+            files["${Paths.PROFILES}/$key.conf"] = tmp("$key.conf", profileConf(key, cfg))
+            files["${Paths.PROFILES}/$key.args"] = argsFile("$key.args", cfg.args)
+        }
+        // profiles of forgotten networks must disappear
+        Root.exec("rm -rf ${Paths.PROFILES}")
         Module.copyIn(files)
         ensureExcludeList()
     }

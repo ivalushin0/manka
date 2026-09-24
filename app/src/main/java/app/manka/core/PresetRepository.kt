@@ -39,9 +39,9 @@ class PresetRepository(private val context: Context, private val prefs: Prefs) {
 
     fun byId(id: String?): Preset? = id?.let { i -> _presets.value.firstOrNull { it.id == i } }
 
-    /** Active preset of the engine; falls back to the first built-in one. */
-    fun active(engine: Engine): Preset =
-        byId(prefs.activePreset(engine))?.takeIf { it.engine == engine } ?: all(engine).first()
+    /** Active preset of the engine in network profile [key]; falls back to the first built-in one. */
+    fun active(engine: Engine, key: String): Preset =
+        byId(prefs.activePreset(engine, key))?.takeIf { it.engine == engine } ?: all(engine).first()
 
     fun save(preset: Preset) {
         userPresets = userPresets.filter { it.id != preset.id } + preset

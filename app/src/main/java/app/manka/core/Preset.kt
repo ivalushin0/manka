@@ -28,6 +28,8 @@ data class Preset(
     val flags: List<PresetFlag> = emptyList(),
     /** Share of test requests that passed when this preset was produced by auto selection. */
     val score: Int? = null,
+    /** Written for another engine and converted on the fly (zapret -> zapret2, like CDPI UI "LEGACY"). */
+    val convertFrom: Engine? = null,
 )
 
 @Serializable
@@ -73,7 +75,11 @@ object PresetRenderer {
             .replace("\$GETCURRENTDIR()", "\$KIT")
             .replace("%~dp0", "\$KIT/")
             .replace("\$EMPTY", "")
-        return fromWinws(Args.split(line), preset.tcpPorts, preset.udpPorts)
+        val rendered = fromWinws(Args.split(line), preset.tcpPorts, preset.udpPorts)
+        if (preset.convertFrom == Engine.ZAPRET && preset.engine == Engine.ZAPRET2) {
+            return rendered.copy(args = Z1ToZ2.convert(rendered.args).args)
+        }
+        return rendered
     }
 
     private fun evalConditions(text: String, flags: Map<String, Boolean>): String =

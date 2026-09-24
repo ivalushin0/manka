@@ -25,12 +25,46 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("enabled", false)
         set(v) = sp.edit { putBoolean("enabled", v) }
 
-    var engine: Engine
-        get() = Engine.of(sp.getString("engine", null)) ?: Engine.BYEDPI
-        set(v) = sp.edit { putString("engine", v.id) }
+    // ---- network profiles (see Profiles). A profile without own settings inherits its parent's.
+    private fun sfx(key: String) = if (key == Profiles.WIFI) "" else "_$key"
 
-    fun activePreset(engine: Engine): String? = sp.getString("active_${engine.id}", null)
-    fun setActivePreset(engine: Engine, id: String) = sp.edit { putString("active_${engine.id}", id) }
+    fun hasOwnEngine(key: String) = sp.contains("engine${sfx(key)}")
+
+    fun engine(key: String): Engine = Engine.of(sp.getString("engine${sfx(key)}", null))
+        ?: Profiles.parent(key)?.let { engine(it) }
+        ?: Engine.BYEDPI
+
+    fun setEngine(key: String, engine: Engine) = sp.edit { putString("engine${sfx(key)}", engine.id) }
+
+    fun activePreset(engine: Engine, key: String): String? =
+        sp.getString("active_${engine.id}${sfx(key)}", null)
+            ?: Profiles.parent(key)?.let { activePreset(engine, it) }
+
+    fun setActivePreset(engine: Engine, key: String, id: String) =
+        sp.edit { putString("active_${engine.id}${sfx(key)}", id) }
+
+    fun baselineRate(key: String): Int = sp.getInt("baseline_rate${sfx(key)}", -1)
+    fun setBaselineRate(key: String, rate: Int) = sp.edit { putInt("baseline_rate${sfx(key)}", rate) }
+
+    /** Wi-Fi networks that have their own profile: key -> SSID. */
+    var knownWifi: Map<String, String>
+        get() = (sp.getStringSet("known_wifi", emptySet()) ?: emptySet())
+            .mapNotNull { e -> e.indexOf('\t').takeIf { it > 0 }?.let { e.substring(0, it) to e.substring(it + 1) } }
+            .toMap()
+        set(v) = sp.edit { putStringSet("known_wifi", v.map { (k, s) -> "$k\t$s" }.toSet()) }
+
+    fun rememberWifi(ssid: String) {
+        knownWifi = knownWifi + (Profiles.wifiKey(ssid) to ssid)
+    }
+
+    /** Drops the own settings of a Wi-Fi network, it falls back to the common Wi-Fi profile. */
+    fun forgetWifi(key: String) {
+        if (!Profiles.isSsid(key)) return
+        knownWifi = knownWifi - key
+        sp.edit {
+            sp.all.keys.filter { it.endsWith("_$key") }.forEach { remove(it) }
+        }
+    }
 
     /** Selected value index of a store preset option (-1 = value from the preset itself). */
     fun presetOption(presetId: String, variable: String): Int = sp.getInt("opt_${presetId}_$variable", -1)
@@ -100,9 +134,6 @@ class Prefs(context: Context) {
     var healthTargets: List<String>
         get() = str("health_targets", "").split('\n').filter { it.isNotBlank() }
         set(v) = sp.edit { putString("health_targets", v.joinToString("\n")) }
-    var baselineRate: Int
-        get() = sp.getInt("baseline_rate", -1)
-        set(v) = sp.edit { putInt("baseline_rate", v) }
     var lastCheckTime: Long
         get() = sp.getLong("last_check_time", 0)
         set(v) = sp.edit { putLong("last_check_time", v) }
@@ -123,6 +154,9 @@ class Prefs(context: Context) {
     var autoIncludeStore: Boolean
         get() = sp.getBoolean("auto_store", true)
         set(v) = sp.edit { putBoolean("auto_store", v) }
+    var autoByeByeDpi: Boolean
+        get() = sp.getBoolean("auto_byebyedpi", true)
+        set(v) = sp.edit { putBoolean("auto_byebyedpi", v) }
     var autoRequests: Int
         get() = sp.getInt("auto_requests", 1)
         set(v) = sp.edit { putInt("auto_requests", v) }

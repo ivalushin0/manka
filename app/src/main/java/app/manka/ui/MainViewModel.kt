@@ -9,6 +9,7 @@ import app.manka.R
 import app.manka.core.Engine
 import app.manka.core.Module
 import app.manka.core.ModuleStatus
+import app.manka.core.Profiles
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,7 +80,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // give the supervisor a moment, crashes show up in "failed"
             delay(1500)
             val again = Module.status()
-            if (!again.engineRunning) say(R.string.engine_failed, prefs.engine.title)
+            if (!again.engineRunning) say(R.string.engine_failed, prefs.engine(again.ownProfile).title)
         }
     }
 
@@ -88,9 +89,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         apply()
     }
 
-    fun setEngine(engine: Engine) {
-        if (prefs.engine == engine) return
-        prefs.engine = engine
+    /** Profile picked on the home screen; null = the profile of the current network. */
+    val pickedProfile = MutableStateFlow<String?>(null)
+
+    /** A Wi-Fi network gets its own profile the first time it is configured. */
+    private fun remember(key: String) {
+        val s = _status.value
+        if (Profiles.isSsid(key) && key == s.ownProfile && s.ssid != null) prefs.rememberWifi(s.ssid!!)
+    }
+
+    fun setEngine(key: String, engine: Engine) {
+        if (prefs.hasOwnEngine(key) && prefs.engine(key) == engine) return
+        remember(key)
+        prefs.setEngine(key, engine)
+        if (prefs.enabled) apply()
+    }
+
+    fun forgetWifi(key: String) {
+        prefs.forgetWifi(key)
+        pickedProfile.value = null
         if (prefs.enabled) apply()
     }
 
@@ -99,9 +116,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         apply()
     }
 
-    fun selectPreset(engine: Engine, id: String) {
-        prefs.setActivePreset(engine, id)
-        if (prefs.enabled && prefs.engine == engine) apply()
+    fun selectPreset(engine: Engine, key: String, id: String) {
+        remember(key)
+        if (!prefs.hasOwnEngine(key)) prefs.setEngine(key, engine)
+        prefs.setActivePreset(engine, key, id)
+        if (prefs.enabled && prefs.engine(key) == engine) apply()
     }
 
     fun installModule() = op(R.string.module_install_failed) {

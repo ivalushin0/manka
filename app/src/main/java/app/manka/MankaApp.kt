@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import app.manka.autoselect.AutoHistory
 import app.manka.autoselect.AutoSelector
 import app.manka.core.Applier
 import app.manka.core.PresetRepository
@@ -37,7 +38,7 @@ class MankaApp : Application() {
         presets = PresetRepository(this, prefs)
         applier = Applier(this, prefs, presets)
         store = StoreRepository(this, prefs, presets)
-        autoSelector = AutoSelector(prefs, presets, applier)
+        autoSelector = AutoSelector(this, prefs, presets, applier, AutoHistory(this))
         createChannels()
         HealthWorker.schedule(this, prefs)
     }

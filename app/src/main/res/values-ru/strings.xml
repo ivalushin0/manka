@@ -43,6 +43,11 @@
     <string name="toggle_bypass">Включить или выключить обход</string>
     <string name="state_off">Обход выключен</string>
     <string name="state_on">Обход включён · %1$s</string>
+    <string name="state_on_net">Обход включён · %1$s · %2$s</string>
+    <string name="profile">Профиль сети</string>
+    <string name="profile_hint">У каждой сети свои движок и стратегия. Сейчас: %1$s (•). Manka сама переключает профиль при смене сети.</string>
+    <string name="net_wifi">Wi-Fi</string>
+    <string name="net_mobile">Мобильная сеть</string>
     <string name="state_starting">Запуск…</string>
     <string name="state_failed">Движок не запустился: %1$s. Проверьте стратегию или логи.</string>
     <string name="engine_failed">%1$s не запустился. Попробуйте другую стратегию или откройте логи.</string>
@@ -114,6 +119,8 @@
     <string name="auto_quick_hint">Около 20 проверенных стратегий, остановка после 3 идеальных. Пара минут.</string>
     <string name="auto_full_hint">Весь каталог (60-100 стратегий). Может занять 10-20 минут.</string>
     <string name="auto_include_store">Проверить и установленные пресеты из магазина</string>
+    <string name="auto_byebyedpi">Стратегии ByeByeDPI</string>
+    <string name="auto_byebyedpi_hint">Проверить и список стратегий приложения ByeByeDPI (скачивается с их GitHub, обновляется раз в неделю)</string>
     <string name="auto_requests">Запросов к каждому сайту: %1$d</string>
     <string name="auto_start">Начать подбор</string>
     <string name="auto_stop">Остановить</string>
@@ -128,6 +135,7 @@
     <string name="auto_running_hint">Можно уйти с этого экрана, проверка продолжится.</string>
     <string name="auto_baseline">Без обхода открылось %1$d из %2$d сайтов</string>
     <string name="auto_blocked_list">Заблокированы (✗ — не открывается):</string>
+    <string name="auto_blocked_count">Заблокировано: %1$d — нажмите, чтобы показать</string>
     <string name="seconds_short">%1$d с</string>
     <string name="auto_nothing_blocked">Все сайты открываются без обхода — для этого списка ничего делать не нужно.</string>
     <string name="auto_best">Лучший результат: %1$d%%</string>
@@ -199,4 +207,21 @@
     <string name="notify_degraded">Стратегия перестала работать: открывается только %1$d%% сайтов. Откройте Manka, чтобы подобрать новую.</string>
     <string name="notify_reselected">Стратегия подобрана заново автоматически: открывается %1$d%% сайтов.</string>
     <string name="notify_reselect_failed">Сайты перестали открываться (%1$d%%), а лучшей стратегии не нашлось.</string>
+
+    <!-- network profiles / history / all engines -->
+    <string name="net_wifi_other">Wi-Fi (остальные)</string>
+    <string name="profile_inherits">У этой сети пока нет своих настроек, используется общий профиль Wi-Fi. Выберите движок или стратегию (или запустите здесь автоподбор), чтобы задать ей свои.</string>
+    <string name="profile_forget">Забыть эту сеть</string>
+    <string name="auto_for_net">Результат сохранится в профиль: %1$s</string>
+    <string name="auto_all_engines">Все</string>
+    <string name="auto_all_hint">Проверяет zapret2, zapret и ByeDPI по очереди и подсказывает, какой движок лучше для этой сети. Занимает больше времени.</string>
+    <string name="auto_recommend_title">Лучше всего для сети «%1$s»</string>
+    <string name="auto_recommend">Используйте %1$s: проходит %2$d%% запросов</string>
+    <string name="auto_engine_best">%1$s: лучший результат %2$d%% · %3$d мс</string>
+    <string name="auto_engine_none">%1$s: ничего не сработало</string>
+    <string name="auto_recommend_apply">Использовать %1$s в этой сети</string>
+    <string name="history_title">История подборов</string>
+    <string name="history_empty">Сохранённых подборов пока нет. Сюда попадает каждый подбор, в котором нашлась рабочая стратегия.</string>
+    <string name="history_summary">Лучший %1$d%% · рабочих %2$d из %3$d проверенных</string>
+    <string name="history_apply_hint">«Применить» ставит стратегию в профиль: %1$s.</string>
 </resources>
