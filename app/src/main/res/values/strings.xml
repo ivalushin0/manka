@@ -182,7 +182,7 @@
     <string name="request_timeout">Request timeout: %1$ds</string>
     <string name="settings_module">Module</string>
     <string name="module_info">Module: %1$s\nconnbytes: %2$s  multiport: %3$s  NFQUEUE: %4$s</string>
-    <string name="no_connbytes_hint">The kernel has no connbytes match: zapret gets every packet of the chosen ports, which costs more CPU and battery. ByeDPI is not affected.</string>
+    <string name="no_connbytes_hint">The kernel has no connbytes match (typical for GKI). Manka passes only SYN and data packets to zapret, not the empty ACKs, so the load stays small but a bit higher than with connbytes. ByeDPI is not affected.</string>
     <string name="debug_logs">Debug logs</string>
     <string name="debug_logs_hint">Write engine output to /data/adb/manka/logs</string>
     <string name="logs">Logs</string>

@@ -180,7 +180,7 @@
     <string name="request_timeout">Таймаут запроса: %1$d с</string>
     <string name="settings_module">Модуль</string>
     <string name="module_info">Модуль: %1$s\nconnbytes: %2$s  multiport: %3$s  NFQUEUE: %4$s</string>
-    <string name="no_connbytes_hint">В ядре нет connbytes: zapret получает все пакеты выбранных портов, это больше нагружает процессор и батарею. ByeDPI это не касается.</string>
+    <string name="no_connbytes_hint">В ядре нет connbytes (обычно для GKI). Manka отдаёт zapret только SYN и пакеты с данными, без пустых ACK, поэтому нагрузка небольшая, но чуть выше, чем с connbytes. ByeDPI это не касается.</string>
     <string name="debug_logs">Отладочные логи</string>
     <string name="debug_logs_hint">Писать вывод движков в /data/adb/manka/logs</string>
     <string name="logs">Логи</string>

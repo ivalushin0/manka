@@ -55,16 +55,17 @@ ip6t() { ip6tables -w "$@"; }
 # ---------------------------------------------------------------- capabilities
 
 probe_caps() {
-	HAS_MP=0; HAS_CB=0; HAS_NFQ=0; HAS_NAT6=0
+	HAS_MP=0; HAS_CB=0; HAS_NFQ=0; HAS_NAT6=0; HAS_LEN=0
 	ipt -t mangle -N MANKA_PROBE 2>/dev/null
 	ipt -t mangle -F MANKA_PROBE 2>/dev/null
 	ipt -t mangle -A MANKA_PROBE -p tcp -m multiport --dports 1,2 -j RETURN 2>/dev/null && HAS_MP=1
 	ipt -t mangle -A MANKA_PROBE -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:2 -j RETURN 2>/dev/null && HAS_CB=1
 	ipt -t mangle -A MANKA_PROBE -p tcp --dport 1 -j NFQUEUE --queue-num 1 --queue-bypass 2>/dev/null && HAS_NFQ=1
+	ipt -t mangle -A MANKA_PROBE -m length --length 81:65535 -j RETURN 2>/dev/null && HAS_LEN=1
 	ipt -t mangle -F MANKA_PROBE 2>/dev/null
 	ipt -t mangle -X MANKA_PROBE 2>/dev/null
 	ip6t -t nat -L OUTPUT -n >/dev/null 2>&1 && HAS_NAT6=1
-	echo "HAS_MP=$HAS_MP HAS_CB=$HAS_CB HAS_NFQ=$HAS_NFQ HAS_NAT6=$HAS_NAT6" > "$RUN/caps"
+	echo "HAS_MP=$HAS_MP HAS_CB=$HAS_CB HAS_NFQ=$HAS_NFQ HAS_NAT6=$HAS_NAT6 HAS_LEN=$HAS_LEN" > "$RUN/caps"
 }
 
 load_caps() {
@@ -148,8 +149,14 @@ setup_nfq() {
 			add_ports $_c mangle $_i tcp sports "$TCP_PORTS" -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes "1:$PKT_IN" $_jq
 			add_ports $_c mangle $_i udp sports "$UDP_PORTS" -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes "1:$PKT_IN" $_jq
 		else
-			# no connbytes in this kernel: every packet of these ports goes to userspace
-			add_ports $_c mangle $_o tcp dports "$TCP_PORTS" $_jq
+			# No connbytes in this kernel (typical for GKI). Keep the userspace load low anyway:
+			# SYN and packets that carry data go to nfqws, pure ACKs of downloads do not.
+			add_ports $_c mangle $_o tcp dports "$TCP_PORTS" --tcp-flags SYN,ACK,FIN,RST SYN $_jq
+			if [ "$HAS_LEN" = 1 ]; then
+				add_ports $_c mangle $_o tcp dports "$TCP_PORTS" -m length --length 81:65535 $_jq
+			else
+				add_ports $_c mangle $_o tcp dports "$TCP_PORTS" $_jq
+			fi
 			add_ports $_c mangle $_o udp dports "$UDP_PORTS" $_jq
 			add_ports $_c mangle $_i tcp sports "$TCP_PORTS" --tcp-flags SYN,ACK SYN,ACK $_jq
 		fi
@@ -175,14 +182,24 @@ setup_byedpi_rules() {
 	done
 }
 
-setup_quic_block() {
+# QUIC block and, for ByeDPI when ip6tables has no nat table, a TCP reset for IPv6
+# so apps fall back to IPv4 (which goes through ciadpi) instead of bypassing it.
+setup_filter() {
 	for _c in $(families); do
+		_v6reset=0
+		[ $_c = ip6t ] && [ "$ENGINE" = byedpi ] && [ "$HAS_NAT6" != 1 ] && _v6reset=1
+		[ "$BLOCK_QUIC" = 1 ] || [ $_v6reset = 1 ] || continue
 		chain_init $_c filter MANKA_FLT OUTPUT || continue
 		$_c -t filter -A MANKA_FLT -o lo -j RETURN
 		for _u in $EXCLUDE_UIDS; do
 			$_c -t filter -A MANKA_FLT -m owner --uid-owner "$_u" -j RETURN
 		done
-		$_c -t filter -A MANKA_FLT -p udp --dport 443 -j REJECT
+		[ "$BLOCK_QUIC" = 1 ] && $_c -t filter -A MANKA_FLT -p udp --dport 443 -j REJECT
+		if [ $_v6reset = 1 ]; then
+			skip_private $_c filter MANKA_FLT dst
+			$_c -t filter -A MANKA_FLT -m owner --uid-owner 0 -j RETURN
+			add_ports $_c filter MANKA_FLT tcp dports "$BYEDPI_PORTS" -j REJECT --reject-with tcp-reset
+		fi
 	done
 }
 
@@ -324,7 +341,7 @@ start_engine() {
 			;;
 		*) return 0 ;;
 	esac
-	[ "$BLOCK_QUIC" = 1 ] && setup_quic_block
+	setup_filter
 	log "engine $ENGINE started"
 }
 
