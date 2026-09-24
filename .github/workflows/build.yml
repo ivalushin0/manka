@@ -157,3 +157,15 @@ jobs:
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: gh release create "$GITHUB_REF_NAME" out/* --title "Manka $GITHUB_REF_NAME" --generate-notes
+
+      - name: Latest build
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          NOTES=$(printf '%s\n\n%s\n\n%s\n%s' \
+            "Автоматическая сборка из main ($(git rev-parse --short HEAD)). Automatic build from main." \
+            "**Manka-*.apk** — приложение (установите и нажмите «Установить модуль»). **Manka-module-*.zip** — модуль для ручной установки через Magisk / KernelSU / APatch." \
+            "Версии компонентов:" \
+            "$(unzip -p build/manka-module.zip versions.txt | sed 's/^/- /')")
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest out/* --prerelease --target "$GITHUB_SHA" \
+            --title "Manka — последняя сборка" --notes "$NOTES"
