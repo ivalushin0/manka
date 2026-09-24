@@ -126,7 +126,9 @@
     <string name="auto_phase_cancelled">Остановлено</string>
     <string name="auto_phase_error">Ошибка: %1$s</string>
     <string name="auto_running_hint">Можно уйти с этого экрана, проверка продолжится.</string>
-    <string name="auto_baseline">Без обхода прошло %1$d%% запросов</string>
+    <string name="auto_baseline">Без обхода открылось %1$d из %2$d сайтов</string>
+    <string name="auto_blocked_list">Заблокированы (✗ — не открывается):</string>
+    <string name="seconds_short">%1$d с</string>
     <string name="auto_nothing_blocked">Все сайты открываются без обхода — для этого списка ничего делать не нужно.</string>
     <string name="auto_best">Лучший результат: %1$d%%</string>
     <string name="auto_none_found">Рабочая стратегия не найдена</string>

@@ -128,7 +128,9 @@
     <string name="auto_phase_cancelled">Stopped</string>
     <string name="auto_phase_error">Error: %1$s</string>
     <string name="auto_running_hint">You can leave this screen, the test continues.</string>
-    <string name="auto_baseline">Without bypass: %1$d%% of requests passed</string>
+    <string name="auto_baseline">Without bypass %1$d of %2$d sites open</string>
+    <string name="auto_blocked_list">Blocked (✗ = does not open):</string>
+    <string name="seconds_short">%1$ds</string>
     <string name="auto_nothing_blocked">All sites open without bypass — nothing to fix for this list.</string>
     <string name="auto_best">Best result: %1$d%%</string>
     <string name="auto_none_found">No working strategy found</string>

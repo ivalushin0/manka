@@ -154,7 +154,7 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                             selected = prefs.autoTimeoutSec == t,
                             onClick = { prefs.autoTimeoutSec = t },
                             shape = SegmentedButtonDefaults.itemShape(i, timeouts.size),
-                        ) { Text("${t}s") }
+                        ) { Text(stringResource(R.string.seconds_short, t)) }
                     }
                 }
             }

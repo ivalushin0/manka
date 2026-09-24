@@ -193,8 +193,16 @@ fun AutoSelectScreen(vm: MainViewModel) {
                 item { ProgressCard(state, onStop = { vm.autoSelector.cancel() }, onNew = { vm.autoSelector.reset() }) }
                 if (state.baseline.isNotEmpty()) {
                     item {
-                        SectionCard(title = stringResource(R.string.auto_baseline, state.baselinePercent)) {
-                            state.baseline.filter { it.ok == 0 }.take(12).forEach { Hint("✗ " + it.url) }
+                        SectionCard(
+                            title = stringResource(
+                                R.string.auto_baseline,
+                                state.baseline.count { it.ok > 0 },
+                                state.baseline.size,
+                            ),
+                        ) {
+                            val blocked = state.baseline.filter { it.ok == 0 }
+                            if (blocked.isNotEmpty()) Text(stringResource(R.string.auto_blocked_list))
+                            blocked.forEach { Hint("✗ " + it.url) }
                             if (state.baseline.all { it.ok > 0 }) Hint(stringResource(R.string.auto_nothing_blocked))
                         }
                     }
