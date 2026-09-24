@@ -246,11 +246,13 @@ supervise() {
 			[ -n "$_a" ] && set -- "$@" "$_a"
 		done < "$_af"
 	fi
-	_log=/dev/null
-	[ "$DEBUG" = 1 ] && _log=$LOGDIR/$_name.log
+	# engines are quiet unless they fail, so stderr is always kept (last run only)
+	_log=$LOGDIR/$_name.log
+	: > "$_log"
 	_fails=0
 	while [ ! -f "$RUN/$_name.stop" ]; do
 		_t0=$(date +%s)
+		[ "$(wc -c < "$_log" 2>/dev/null || echo 0)" -gt 1048576 ] && : > "$_log"
 		"$_bin" "$@" </dev/null >>"$_log" 2>&1 &
 		echo $! > "$RUN/$_name.pid"
 		wait $!
@@ -298,17 +300,23 @@ stop_daemon() {
 	rm -f "$RUN/$1.pid" "$RUN/$1.sup"
 }
 
-# wait until daemon is up (or died); prints ok/fail
+# wait until daemon is up (or died); prints ok, or the daemon output and fail
+daemon_failed() {
+	tail -n 20 "$LOGDIR/$1.log" 2>/dev/null | sed "s/^/err: /"
+	echo fail
+	return 1
+}
+
 await_daemon() {
 	_i=0
 	while [ $_i -lt 10 ]; do
-		[ -f "$RUN/$1.failed" ] && { echo fail; return 1; }
+		[ -f "$RUN/$1.failed" ] && { daemon_failed "$1"; return 1; }
 		is_running "$1" && break
 		sleep 0.1
 		_i=$((_i + 1))
 	done
 	sleep 0.3
-	if is_running "$1"; then echo ok; else echo fail; return 1; fi
+	if is_running "$1"; then echo ok; else daemon_failed "$1"; fi
 }
 
 lua_init() {

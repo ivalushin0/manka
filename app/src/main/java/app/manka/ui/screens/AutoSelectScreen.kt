@@ -276,6 +276,9 @@ private fun ResultCard(rank: Int, result: StrategyResult, canApply: Boolean, onA
                     Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
                 }
             }
+            result.startError?.let { err ->
+                Mono(err, maxLines = if (open) Int.MAX_VALUE else 3)
+            }
             if (open) {
                 result.sites.forEach { s -> SiteLine(s) }
             }

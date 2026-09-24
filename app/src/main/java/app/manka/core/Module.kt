@@ -123,10 +123,12 @@ object Module {
 
     suspend fun restartTgws(): Root.Result = run("tgws-restart", 30)
 
-    /** Starts a temporary engine instance limited to [uid]. Returns true when the engine came up. */
-    suspend fun testStart(engine: Engine, argsFile: String, uid: Int): Boolean {
+    /** Starts a temporary engine instance limited to [uid]. Returns null on success, otherwise the engine output. */
+    suspend fun testStart(engine: Engine, argsFile: String, uid: Int): String? {
         val r = run("test-start ${engine.id} ${Root.q(argsFile)} $uid", 30)
-        return r.lines.lastOrNull()?.trim() == "ok"
+        if (r.lines.lastOrNull()?.trim() == "ok") return null
+        return r.lines.filter { it.startsWith("err: ") }.joinToString("\n") { it.removePrefix("err: ") }
+            .ifBlank { r.out.trim().takeLast(600).ifBlank { "exit code ${r.code}" } }
     }
 
     suspend fun testStop() = run("test-stop", 30)

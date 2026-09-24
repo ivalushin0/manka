@@ -31,8 +31,10 @@ import kotlin.coroutines.coroutineContext
 data class StrategyResult(
     val candidate: Strategies.Candidate,
     val sites: List<SiteResult>,
-    val startFailed: Boolean = false,
+    /** Engine output when it refused to start with these arguments. */
+    val startError: String? = null,
 ) {
+    val startFailed get() = startError != null
     val ok get() = sites.sumOf { it.ok }
     val total get() = sites.sumOf { it.total }
     val percent get() = if (total == 0) 0 else ok * 100 / total
@@ -117,6 +119,7 @@ class AutoSelector(
         val uid = Process.myUid()
         val socks = if (request.engine == Engine.BYEDPI) BYEDPI_TEST_PORT else null
         var perfect = 0
+        var failedInRow = 0
         try {
             applier.writeConfig()
             Module.run("engine-stop", 60)
@@ -127,9 +130,9 @@ class AutoSelector(
                 if (!coroutineContext.isActive) break
                 _state.update { it.copy(current = i + 1, currentName = c.name) }
                 val argsFile = applier.writeTestArgs(argsOf(c))
-                val started = Module.testStart(request.engine, argsFile, uid)
-                val result = if (!started) {
-                    StrategyResult(c, emptyList(), startFailed = true)
+                val error = Module.testStart(request.engine, argsFile, uid)
+                val result = if (error != null) {
+                    StrategyResult(c, emptyList(), startError = error.ifBlank { "?" })
                 } else {
                     // hostlists of big store presets take a moment to load
                     delay(if (c.preset?.source == PresetSource.STORE) 1500 else 600)
@@ -137,6 +140,11 @@ class AutoSelector(
                     StrategyResult(c, sites)
                 }
                 _state.update { it.copy(results = it.results + result) }
+                failedInRow = if (result.startFailed) failedInRow + 1 else 0
+                if (failedInRow >= 3 && i == failedInRow - 1) {
+                    // the engine does not start at all, testing the rest is pointless
+                    throw IllegalStateException(result.startError)
+                }
                 if (result.total > 0 && result.ok == result.total) perfect++
                 if (request.stopAfterPerfect in 1..perfect) break
             }
