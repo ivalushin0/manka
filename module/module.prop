@@ -1,0 +1,6 @@
+id=manka
+name=Manka
+version=@VERSION@
+versionCode=@VERSION_CODE@
+author=Manka contributors
+description=DPI bypass (zapret, zapret2, ByeDPI) and TG WS Proxy without VPN. Controlled by the Manka app.

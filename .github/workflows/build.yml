@@ -1,0 +1,159 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      zapret_tag:
+        description: "bol-van/zapret tag (empty = latest)"
+        required: false
+      zapret2_tag:
+        description: "bol-van/zapret2 tag (empty = latest)"
+        required: false
+      byedpi_tag:
+        description: "hufrea/byedpi tag (empty = latest)"
+        required: false
+      tgws_tag:
+        description: "valnesfjord/tg-ws-proxy-rs tag (empty = latest)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  natives:
+    name: Native binaries + module
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ZAPRET_TAG: ${{ inputs.zapret_tag }}
+      ZAPRET2_TAG: ${{ inputs.zapret2_tag }}
+      BYEDPI_TAG: ${{ inputs.byedpi_tag }}
+      TGWS_TAG: ${{ inputs.tgws_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: false
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-ndk
+            build/work/cargo-target
+          key: cargo-${{ runner.os }}-${{ hashFiles('scripts/build-natives.sh') }}-v1
+
+      - name: Build native binaries
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: bash scripts/build-natives.sh build/natives
+
+      - name: Version
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="v0.1.0-$(git rev-list --count HEAD)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble module
+        run: |
+          set -e
+          M=build/module
+          rm -rf "$M"; mkdir -p "$M"
+          cp -r module/. "$M/"
+          cp -r build/natives/libs "$M/libs"
+          cp -r build/natives/files "$M/files"
+          cp build/natives/versions.txt "$M/versions.txt"
+          sed -i "s/@VERSION@/${{ steps.ver.outputs.version }}/; s/@VERSION_CODE@/${{ steps.ver.outputs.code }}/" "$M/module.prop"
+          (cd "$M" && zip -qr9 ../manka-module.zip .)
+          ls -la build/manka-module.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manka-module
+          path: build/manka-module.zip
+
+  apk:
+    name: APK
+    needs: natives
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: manka-module
+          path: build
+
+      - name: Bundle module and store snapshot
+        run: |
+          mkdir -p app/src/main/assets
+          cp build/manka-module.zip app/src/main/assets/module.zip
+          bash scripts/fetch-store.sh app/src/main/assets
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "MANKA_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::KEYSTORE_BASE64 secret is not set, the APK is signed with a throwaway debug key"
+          fi
+
+      - name: Build APK
+        env:
+          MANKA_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          MANKA_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          MANKA_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          COUNT=$(git rev-list --count HEAD)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then NAME="${GITHUB_REF_NAME#v}"; else NAME="0.1.0-$COUNT"; fi
+          gradle --no-daemon :app:assembleRelease -PversionCode="$COUNT" -PversionName="$NAME"
+          mkdir -p out
+          cp app/build/outputs/apk/release/*.apk "out/Manka-$NAME.apk"
+          cp build/manka-module.zip "out/Manka-module-$NAME.zip"
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manka
+          path: out/*
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: gh release create "$GITHUB_REF_NAME" out/* --title "Manka $GITHUB_REF_NAME" --generate-notes

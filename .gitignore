@@ -1,0 +1,13 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+*.jks
+*.keystore
+# produced by CI
+app/src/main/assets/module.zip
+app/src/main/assets/store/

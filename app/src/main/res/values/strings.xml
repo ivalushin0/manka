@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Manka</string>
+
+    <string name="tab_home">Home</string>
+    <string name="tab_auto">Auto select</string>
+    <string name="tab_store">Store</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="back">Back</string>
+    <string name="refresh">Refresh</string>
+    <string name="retry">Retry</string>
+    <string name="save">Save</string>
+    <string name="save_apply">Save and apply</string>
+    <string name="save_restart">Save and restart</string>
+    <string name="cancel">Cancel</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="install">Install</string>
+    <string name="update">Update</string>
+    <string name="copy">Copy</string>
+    <string name="copied">Copied</string>
+    <string name="search">Search</string>
+    <string name="more">More</string>
+    <string name="less">Less</string>
+    <string name="off">Off</string>
+    <string name="hours_short">%1$dh</string>
+    <string name="settings">Settings</string>
+    <string name="error_generic">Error: %1$s</string>
+    <string name="channel_status">Bypass status</string>
+
+    <!-- home -->
+    <string name="no_root_title">No root access</string>
+    <string name="no_root_text">Manka works only on rooted phones (Magisk, KernelSU or APatch). Grant root access to Manka in your root manager and tap Retry.</string>
+    <string name="module_missing_title">Module is not installed</string>
+    <string name="module_missing_text">Manka runs zapret, ByeDPI and TG WS Proxy through its own root module. It starts at boot and keeps working in the background without VPN. Install it now; a reboot is not required.</string>
+    <string name="module_install">Install module</string>
+    <string name="module_installed">Module installed</string>
+    <string name="module_install_failed">Module installation failed: %1$s</string>
+    <string name="module_update_available">A newer module version is bundled with the app.</string>
+    <string name="module_update">Update module</string>
+    <string name="module_reinstall">Reinstall module</string>
+    <string name="module_disabled">The Manka module is disabled in the root manager. Enable it and reboot.</string>
+    <string name="module_removing">The Manka module is marked for removal and will be deleted on reboot.</string>
+    <string name="toggle_bypass">Turn bypass on or off</string>
+    <string name="state_off">Bypass is off</string>
+    <string name="state_on">Bypass is on · %1$s</string>
+    <string name="state_starting">Starting…</string>
+    <string name="state_failed">Engine failed to start: %1$s. Check the strategy or the logs.</string>
+    <string name="engine_failed">%1$s did not start. Try another strategy or open the logs.</string>
+    <string name="no_nfqueue">This kernel does not support NFQUEUE, zapret cannot work here. Use ByeDPI.</string>
+    <string name="engine">Engine</string>
+    <string name="engine_zapret2_hint">zapret2: Lua strategies, the most flexible engine. Works with packets, no proxy in the way.</string>
+    <string name="engine_zapret_hint">zapret: classic nfqws. Compatible with CDPI UI presets from the store (Flowseal and others).</string>
+    <string name="engine_byedpi_hint">ByeDPI: transparent proxy like ByeByeDPI, but through iptables instead of VPN.</string>
+    <string name="strategy_current">Strategy: %1$s</string>
+    <string name="strategy_choose">Strategies</string>
+    <string name="strategy_autoselect">Auto select</string>
+    <string name="last_check">Last check %1$s: %2$d%% of sites open</string>
+    <string name="telegram">Telegram</string>
+    <string name="tgws_title">TG WS Proxy</string>
+    <string name="tgws_off">Off</string>
+    <string name="tgws_running">Running on 127.0.0.1:%1$d</string>
+    <string name="tgws_not_running">Not running</string>
+    <string name="tgws_connect">Connect Telegram</string>
+    <string name="tgws_link_copied">Telegram is not installed, the proxy link was copied</string>
+
+    <!-- telegram -->
+    <string name="tgws_background_hint">The proxy is started by the root module, so it keeps working when the screen is off and after reboots. Telegram keeps its connection (and notifications) through it.</string>
+    <string name="tgws_battery">Battery</string>
+    <string name="tgws_pool_hint">Number of pre-opened WebSocket connections per data center. Economy mode (0) opens connections only when Telegram needs them — the lowest battery use; the first connection is a bit slower.</string>
+    <string name="tgws_pool_eco">Eco</string>
+    <string name="tgws_routing">Connection</string>
+    <string name="tgws_cf">Cloudflare fallback</string>
+    <string name="tgws_cf_hint">Use the public CF proxy domains when Telegram WebSocket servers are blocked (--default-domains)</string>
+    <string name="tgws_port">Port</string>
+    <string name="tgws_dc_ips">DC addresses (DC:IP, optional)</string>
+    <string name="tgws_extra">Extra tg-ws-proxy arguments</string>
+    <string name="tgws_new_secret">New secret</string>
+    <string name="tgws_secret_hint">After changing the secret or port, tap Connect Telegram again.</string>
+
+    <!-- presets -->
+    <string name="presets_title">Strategies · %1$s</string>
+    <string name="preset_add">New strategy</string>
+    <string name="preset_copy">Copy to mine</string>
+    <string name="preset_name">Name</string>
+    <string name="preset_args">Arguments</string>
+    <string name="preset_tcp">TCP ports (empty = from settings)</string>
+    <string name="preset_udp">UDP ports (empty = from settings)</string>
+    <string name="preset_ports">Ports: TCP %1$s · UDP %2$s</string>
+    <string name="preset_editor_hint">You can paste winws arguments from a .bat file: --wf-tcp/--wf-udp become ports. Placeholders: $FAKE (fake payloads), $LUA, $LISTS, $EXCLUDE, $KIT, {sni}.</string>
+    <string name="presets_hint">Store presets come from CDPI UI kits. Auto select saves its results to the "Auto select" group.</string>
+    <string name="source_builtin">Built-in</string>
+    <string name="source_store">From the store</string>
+    <string name="source_user">Mine</string>
+    <string name="source_auto">Auto select</string>
+    <string name="option_default">As in preset</string>
+    <string name="option_n">Variant %1$d</string>
+    <string name="flag_game_tcp">Game filter TCP (ports 1024-65535)</string>
+    <string name="flag_game_udp">Game filter UDP (ports 1024-65535)</string>
+
+    <!-- auto select -->
+    <string name="auto_title">Auto select</string>
+    <string name="auto_engine_hint">Strategies are tested one by one on the chosen sites. Only Manka\'s own traffic goes through the tested engine, other apps just lose the bypass for a few minutes.</string>
+    <string name="auto_sites">Sites to check</string>
+    <string name="group_youtube">YouTube</string>
+    <string name="group_discord">Discord</string>
+    <string name="group_general">Blocked sites</string>
+    <string name="group_cdn">Cloudflare / CDN</string>
+    <string name="group_telegram">Telegram web</string>
+    <string name="group_dpi_suite">DPI 16-20 KB test</string>
+    <string name="auto_custom">My sites (one per line)</string>
+    <string name="auto_mode">Mode</string>
+    <string name="auto_quick">Quick</string>
+    <string name="auto_full">Full</string>
+    <string name="auto_quick_hint">About 20 proven strategies, stops after 3 perfect ones. A couple of minutes.</string>
+    <string name="auto_full_hint">The whole catalogue (60-100 strategies). Can take 10-20 minutes.</string>
+    <string name="auto_include_store">Also test installed store presets</string>
+    <string name="auto_requests">Requests per site: %1$d</string>
+    <string name="auto_start">Start</string>
+    <string name="auto_stop">Stop</string>
+    <string name="auto_new">New selection</string>
+    <string name="auto_disclaimer">Don\'t switch networks or VPN during the test.</string>
+    <string name="auto_no_targets">Choose at least one group or add your sites</string>
+    <string name="auto_phase_baseline">Checking sites without bypass…</string>
+    <string name="auto_phase_testing">Testing strategy %1$d of %2$d</string>
+    <string name="auto_phase_done">Done</string>
+    <string name="auto_phase_cancelled">Stopped</string>
+    <string name="auto_phase_error">Error: %1$s</string>
+    <string name="auto_running_hint">You can leave this screen, the test continues.</string>
+    <string name="auto_baseline">Without bypass: %1$d%% of requests passed</string>
+    <string name="auto_nothing_blocked">All sites open without bypass — nothing to fix for this list.</string>
+    <string name="auto_best">Best result: %1$d%%</string>
+    <string name="auto_none_found">No working strategy found</string>
+    <string name="auto_none_hint">Try the full mode, another engine, or check DNS (Private DNS can help against DNS spoofing).</string>
+    <string name="auto_result">%1$d%% · %2$d/%3$d · %4$d ms</string>
+    <string name="auto_start_failed">The engine did not start with these arguments</string>
+    <string name="auto_apply">Apply</string>
+    <string name="auto_applied">Strategy applied</string>
+
+    <!-- store -->
+    <string name="store_title">Store</string>
+    <string name="store_refresh">Update catalogue</string>
+    <string name="store_refreshed">Catalogue updated</string>
+    <string name="store_refresh_failed">Could not update the catalogue: %1$s</string>
+    <string name="store_configs">Presets</string>
+    <string name="store_lists">Lists</string>
+    <string name="store_components">Components</string>
+    <string name="store_hint">Catalogue of CDPI UI (Storik4pro/CDPIUI-Store). Preset kits are bundled with the app and can be updated online.</string>
+    <string name="store_by">by %1$s</string>
+    <string name="store_installed">%1$s installed</string>
+    <string name="store_updated">%1$s updated</string>
+    <string name="store_install_failed">Installation failed: %1$s</string>
+    <string name="store_installed_version">Installed: %1$s</string>
+    <string name="store_list_path">Use in your strategies as $LISTS/%1$s.txt</string>
+    <string name="store_bundled">Built into the Manka module</string>
+    <string name="store_unsupported">Windows only</string>
+
+    <!-- apps -->
+    <string name="apps_title">Excluded apps</string>
+    <string name="apps_hint">Checked apps bypass Manka completely (banking apps, games with anti-cheat, etc.). Applies to the main user only.</string>
+    <string name="apps_show_system">Show system apps</string>
+    <string name="apps_button">Excluded apps (%1$d)</string>
+
+    <!-- settings -->
+    <string name="settings_bypass">Bypass</string>
+    <string name="block_quic">Block QUIC (UDP 443)</string>
+    <string name="block_quic_hint">Apps fall back to TCP, which the strategies handle best. Recommended.</string>
+    <string name="ipv6">IPv6</string>
+    <string name="ipv6_hint">Apply the bypass to IPv6 traffic too</string>
+    <string name="exclude_sites">Excluded sites</string>
+    <string name="exclude_sites_hint">zapret does not touch these domains (and their subdomains). One per line.</string>
+    <string name="tcp_ports">zapret TCP ports</string>
+    <string name="udp_ports">zapret UDP ports</string>
+    <string name="byedpi_ports">ByeDPI TCP ports</string>
+    <string name="fake_sni">SNI for fake packets ({sni})</string>
+    <string name="ports_hint">Comma separated, ranges as 50000-50100. Store presets use their own ports.</string>
+    <string name="settings_check">Background check</string>
+    <string name="check_hint">Manka periodically restarts crashed services and checks that the sites still open. The check is a few HTTPS requests, it costs almost no battery.</string>
+    <string name="auto_reselect">Re-select automatically</string>
+    <string name="auto_reselect_hint">If the strategy stops working, run a quick selection and apply the best result</string>
+    <string name="request_timeout">Request timeout: %1$ds</string>
+    <string name="settings_module">Module</string>
+    <string name="module_info">Module: %1$s\nconnbytes: %2$s  multiport: %3$s  NFQUEUE: %4$s</string>
+    <string name="no_connbytes_hint">The kernel has no connbytes match: zapret gets every packet of the chosen ports, which costs more CPU and battery. ByeDPI is not affected.</string>
+    <string name="debug_logs">Debug logs</string>
+    <string name="debug_logs_hint">Write engine output to /data/adb/manka/logs</string>
+    <string name="logs">Logs</string>
+    <string name="logs_empty">No logs yet</string>
+    <string name="language">Language</string>
+    <string name="language_system">System</string>
+    <string name="language_ru">Русский</string>
+    <string name="language_en">English</string>
+    <string name="about">About</string>
+    <string name="about_version">Manka %1$s</string>
+    <string name="about_credits">Built on zapret and zapret2 (bol-van), ByeDPI (hufrea), tg-ws-proxy (Flowseal) and its Rust port (valnesfjord), the CDPI UI store (Storik4pro). Inspired by ByeByeDPI.</string>
+
+    <!-- notifications -->
+    <string name="notify_degraded">The strategy stopped working: only %1$d%% of sites open. Open Manka to select a new one.</string>
+    <string name="notify_reselected">The strategy was re-selected automatically: %1$d%% of sites open.</string>
+    <string name="notify_reselect_failed">Sites stopped opening (%1$d%%) and no better strategy was found.</string>
+</resources>

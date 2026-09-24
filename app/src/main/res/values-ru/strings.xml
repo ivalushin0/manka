@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_home">Главная</string>
+    <string name="tab_auto">Автоподбор</string>
+    <string name="tab_store">Магазин</string>
+    <string name="tab_settings">Настройки</string>
+
+    <string name="back">Назад</string>
+    <string name="refresh">Обновить</string>
+    <string name="retry">Повторить</string>
+    <string name="save">Сохранить</string>
+    <string name="save_apply">Сохранить и применить</string>
+    <string name="save_restart">Сохранить и перезапустить</string>
+    <string name="cancel">Отмена</string>
+    <string name="edit">Изменить</string>
+    <string name="delete">Удалить</string>
+    <string name="install">Установить</string>
+    <string name="update">Обновить</string>
+    <string name="copy">Копировать</string>
+    <string name="copied">Скопировано</string>
+    <string name="search">Поиск</string>
+    <string name="more">Подробнее</string>
+    <string name="less">Свернуть</string>
+    <string name="off">Выкл</string>
+    <string name="hours_short">%1$d ч</string>
+    <string name="settings">Настройки</string>
+    <string name="error_generic">Ошибка: %1$s</string>
+    <string name="channel_status">Состояние обхода</string>
+
+    <!-- home -->
+    <string name="no_root_title">Нет root-доступа</string>
+    <string name="no_root_text">Manka работает только на телефонах с root (Magisk, KernelSU или APatch). Выдайте Manka root-доступ в менеджере и нажмите «Повторить».</string>
+    <string name="module_missing_title">Модуль не установлен</string>
+    <string name="module_missing_text">Manka запускает zapret, ByeDPI и TG WS Proxy через собственный root-модуль. Он стартует при загрузке телефона и работает в фоне без VPN. Установите его сейчас — перезагрузка не нужна.</string>
+    <string name="module_install">Установить модуль</string>
+    <string name="module_installed">Модуль установлен</string>
+    <string name="module_install_failed">Не удалось установить модуль: %1$s</string>
+    <string name="module_update_available">В приложении есть более новая версия модуля.</string>
+    <string name="module_update">Обновить модуль</string>
+    <string name="module_reinstall">Переустановить модуль</string>
+    <string name="module_disabled">Модуль Manka отключён в root-менеджере. Включите его и перезагрузите телефон.</string>
+    <string name="module_removing">Модуль Manka помечен на удаление и будет удалён после перезагрузки.</string>
+    <string name="toggle_bypass">Включить или выключить обход</string>
+    <string name="state_off">Обход выключен</string>
+    <string name="state_on">Обход включён · %1$s</string>
+    <string name="state_starting">Запуск…</string>
+    <string name="state_failed">Движок не запустился: %1$s. Проверьте стратегию или логи.</string>
+    <string name="engine_failed">%1$s не запустился. Попробуйте другую стратегию или откройте логи.</string>
+    <string name="no_nfqueue">Ядро не поддерживает NFQUEUE, zapret здесь работать не сможет. Используйте ByeDPI.</string>
+    <string name="engine">Движок</string>
+    <string name="engine_zapret2_hint">zapret2: Lua-стратегии, самый гибкий движок. Работает с пакетами, без прокси.</string>
+    <string name="engine_zapret_hint">zapret: классический nfqws. Совместим с пресетами CDPI UI из магазина (Flowseal и другие).</string>
+    <string name="engine_byedpi_hint">ByeDPI: прозрачный прокси, как в ByeByeDPI, но через iptables вместо VPN.</string>
+    <string name="strategy_current">Стратегия: %1$s</string>
+    <string name="strategy_choose">Стратегии</string>
+    <string name="strategy_autoselect">Подобрать</string>
+    <string name="last_check">Проверка %1$s: открылось %2$d%% сайтов</string>
+    <string name="telegram">Telegram</string>
+    <string name="tgws_title">TG WS Proxy</string>
+    <string name="tgws_off">Выключен</string>
+    <string name="tgws_running">Работает на 127.0.0.1:%1$d</string>
+    <string name="tgws_not_running">Не запущен</string>
+    <string name="tgws_connect">Подключить Telegram</string>
+    <string name="tgws_link_copied">Telegram не установлен, ссылка на прокси скопирована</string>
+
+    <!-- telegram -->
+    <string name="tgws_background_hint">Прокси запускает root-модуль, поэтому он работает при выключенном экране и после перезагрузки. Telegram держит через него соединение, и уведомления приходят.</string>
+    <string name="tgws_battery">Батарея</string>
+    <string name="tgws_pool_hint">Сколько WebSocket-соединений держать открытыми заранее для каждого дата-центра. Эко (0) открывает соединения только когда они нужны Telegram — минимальный расход батареи, первое подключение чуть медленнее.</string>
+    <string name="tgws_pool_eco">Эко</string>
+    <string name="tgws_routing">Подключение</string>
+    <string name="tgws_cf">Резерв через Cloudflare</string>
+    <string name="tgws_cf_hint">Использовать публичные CF-домены, если WebSocket-серверы Telegram заблокированы (--default-domains)</string>
+    <string name="tgws_port">Порт</string>
+    <string name="tgws_dc_ips">Адреса DC (DC:IP, необязательно)</string>
+    <string name="tgws_extra">Дополнительные аргументы tg-ws-proxy</string>
+    <string name="tgws_new_secret">Новый секрет</string>
+    <string name="tgws_secret_hint">После смены секрета или порта снова нажмите «Подключить Telegram».</string>
+
+    <!-- presets -->
+    <string name="presets_title">Стратегии · %1$s</string>
+    <string name="preset_add">Новая стратегия</string>
+    <string name="preset_copy">Копировать в мои</string>
+    <string name="preset_name">Название</string>
+    <string name="preset_args">Аргументы</string>
+    <string name="preset_tcp">TCP-порты (пусто = из настроек)</string>
+    <string name="preset_udp">UDP-порты (пусто = из настроек)</string>
+    <string name="preset_ports">Порты: TCP %1$s · UDP %2$s</string>
+    <string name="preset_editor_hint">Можно вставить аргументы winws из .bat-файла: --wf-tcp/--wf-udp станут портами. Подстановки: $FAKE (фейковые пакеты), $LUA, $LISTS, $EXCLUDE, $KIT, {sni}.</string>
+    <string name="presets_hint">Пресеты из магазина — это наборы CDPI UI. Результаты автоподбора сохраняются в группу «Автоподбор».</string>
+    <string name="source_builtin">Встроенные</string>
+    <string name="source_store">Из магазина</string>
+    <string name="source_user">Мои</string>
+    <string name="source_auto">Автоподбор</string>
+    <string name="option_default">Как в пресете</string>
+    <string name="option_n">Вариант %1$d</string>
+    <string name="flag_game_tcp">Игровой фильтр TCP (порты 1024-65535)</string>
+    <string name="flag_game_udp">Игровой фильтр UDP (порты 1024-65535)</string>
+
+    <!-- auto select -->
+    <string name="auto_title">Автоподбор</string>
+    <string name="auto_engine_hint">Стратегии проверяются по очереди на выбранных сайтах. Через тестируемый движок идёт только трафик самой Manka, остальные приложения на несколько минут остаются без обхода.</string>
+    <string name="auto_sites">Какие сайты проверять</string>
+    <string name="group_youtube">YouTube</string>
+    <string name="group_discord">Discord</string>
+    <string name="group_general">Заблокированные сайты</string>
+    <string name="group_cdn">Cloudflare / CDN</string>
+    <string name="group_telegram">Telegram web</string>
+    <string name="group_dpi_suite">Тест DPI 16-20 КБ</string>
+    <string name="auto_custom">Свои сайты (по одному на строку)</string>
+    <string name="auto_mode">Режим</string>
+    <string name="auto_quick">Быстрый</string>
+    <string name="auto_full">Полный</string>
+    <string name="auto_quick_hint">Около 20 проверенных стратегий, остановка после 3 идеальных. Пара минут.</string>
+    <string name="auto_full_hint">Весь каталог (60-100 стратегий). Может занять 10-20 минут.</string>
+    <string name="auto_include_store">Проверить и установленные пресеты из магазина</string>
+    <string name="auto_requests">Запросов к каждому сайту: %1$d</string>
+    <string name="auto_start">Начать подбор</string>
+    <string name="auto_stop">Остановить</string>
+    <string name="auto_new">Новый подбор</string>
+    <string name="auto_disclaimer">Не переключайте сеть и VPN во время проверки.</string>
+    <string name="auto_no_targets">Выберите хотя бы одну группу или добавьте свои сайты</string>
+    <string name="auto_phase_baseline">Проверка сайтов без обхода…</string>
+    <string name="auto_phase_testing">Проверка стратегии %1$d из %2$d</string>
+    <string name="auto_phase_done">Готово</string>
+    <string name="auto_phase_cancelled">Остановлено</string>
+    <string name="auto_phase_error">Ошибка: %1$s</string>
+    <string name="auto_running_hint">Можно уйти с этого экрана, проверка продолжится.</string>
+    <string name="auto_baseline">Без обхода прошло %1$d%% запросов</string>
+    <string name="auto_nothing_blocked">Все сайты открываются без обхода — для этого списка ничего делать не нужно.</string>
+    <string name="auto_best">Лучший результат: %1$d%%</string>
+    <string name="auto_none_found">Рабочая стратегия не найдена</string>
+    <string name="auto_none_hint">Попробуйте полный режим, другой движок или проверьте DNS (от подмены DNS помогает «Частный DNS»).</string>
+    <string name="auto_result">%1$d%% · %2$d/%3$d · %4$d мс</string>
+    <string name="auto_start_failed">Движок не запустился с этими аргументами</string>
+    <string name="auto_apply">Применить</string>
+    <string name="auto_applied">Стратегия применена</string>
+
+    <!-- store -->
+    <string name="store_title">Магазин</string>
+    <string name="store_refresh">Обновить каталог</string>
+    <string name="store_refreshed">Каталог обновлён</string>
+    <string name="store_refresh_failed">Не удалось обновить каталог: %1$s</string>
+    <string name="store_configs">Пресеты</string>
+    <string name="store_lists">Списки</string>
+    <string name="store_components">Компоненты</string>
+    <string name="store_hint">Каталог CDPI UI (Storik4pro/CDPIUI-Store). Наборы пресетов уже встроены в приложение, их можно обновить из сети.</string>
+    <string name="store_by">автор: %1$s</string>
+    <string name="store_installed">%1$s установлен</string>
+    <string name="store_updated">%1$s обновлён</string>
+    <string name="store_install_failed">Не удалось установить: %1$s</string>
+    <string name="store_installed_version">Установлено: %1$s</string>
+    <string name="store_list_path">Используйте в своих стратегиях как $LISTS/%1$s.txt</string>
+    <string name="store_bundled">Встроен в модуль Manka</string>
+    <string name="store_unsupported">Только для Windows</string>
+
+    <!-- apps -->
+    <string name="apps_title">Исключённые приложения</string>
+    <string name="apps_hint">Отмеченные приложения полностью идут мимо Manka (банки, игры с античитом и т. п.). Действует для основного пользователя.</string>
+    <string name="apps_show_system">Показывать системные</string>
+    <string name="apps_button">Исключённые приложения (%1$d)</string>
+
+    <!-- settings -->
+    <string name="settings_bypass">Обход</string>
+    <string name="block_quic">Блокировать QUIC (UDP 443)</string>
+    <string name="block_quic_hint">Приложения перейдут на TCP, с которым стратегии работают лучше всего. Рекомендуется.</string>
+    <string name="ipv6">IPv6</string>
+    <string name="ipv6_hint">Применять обход и к IPv6-трафику</string>
+    <string name="exclude_sites">Сайты-исключения</string>
+    <string name="exclude_sites_hint">zapret не трогает эти домены и их поддомены. По одному на строку.</string>
+    <string name="tcp_ports">TCP-порты zapret</string>
+    <string name="udp_ports">UDP-порты zapret</string>
+    <string name="byedpi_ports">TCP-порты ByeDPI</string>
+    <string name="fake_sni">SNI для фейковых пакетов ({sni})</string>
+    <string name="ports_hint">Через запятую, диапазоны как 50000-50100. Пресеты из магазина используют свои порты.</string>
+    <string name="settings_check">Фоновая проверка</string>
+    <string name="check_hint">Manka периодически перезапускает упавшие службы и проверяет, что сайты открываются. Проверка — несколько HTTPS-запросов, батарею почти не расходует.</string>
+    <string name="auto_reselect">Переподбирать автоматически</string>
+    <string name="auto_reselect_hint">Если стратегия перестала работать, запустить быстрый подбор и применить лучший результат</string>
+    <string name="request_timeout">Таймаут запроса: %1$d с</string>
+    <string name="settings_module">Модуль</string>
+    <string name="module_info">Модуль: %1$s\nconnbytes: %2$s  multiport: %3$s  NFQUEUE: %4$s</string>
+    <string name="no_connbytes_hint">В ядре нет connbytes: zapret получает все пакеты выбранных портов, это больше нагружает процессор и батарею. ByeDPI это не касается.</string>
+    <string name="debug_logs">Отладочные логи</string>
+    <string name="debug_logs_hint">Писать вывод движков в /data/adb/manka/logs</string>
+    <string name="logs">Логи</string>
+    <string name="logs_empty">Логов пока нет</string>
+    <string name="language">Язык</string>
+    <string name="language_system">Системный</string>
+    <string name="language_ru">Русский</string>
+    <string name="language_en">English</string>
+    <string name="about">О приложении</string>
+    <string name="about_version">Manka %1$s</string>
+    <string name="about_credits">Основано на zapret и zapret2 (bol-van), ByeDPI (hufrea), tg-ws-proxy (Flowseal) и его порте на Rust (valnesfjord), магазине CDPI UI (Storik4pro). Вдохновлено ByeByeDPI.</string>
+
+    <!-- notifications -->
+    <string name="notify_degraded">Стратегия перестала работать: открывается только %1$d%% сайтов. Откройте Manka, чтобы подобрать новую.</string>
+    <string name="notify_reselected">Стратегия подобрана заново автоматически: открывается %1$d%% сайтов.</string>
+    <string name="notify_reselect_failed">Сайты перестали открываться (%1$d%%), а лучшей стратегии не нашлось.</string>
+</resources>
