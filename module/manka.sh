@@ -12,8 +12,8 @@
 SELF=$(readlink -f "$0")
 MODDIR=${SELF%/*}
 BIN=$MODDIR/bin
-FILES=$DATA/files
 DATA=/data/adb/manka
+FILES=$DATA/files
 RUN=$DATA/run
 LOGDIR=$DATA/logs
 ARGS=$DATA/args
@@ -321,7 +321,11 @@ await_daemon() {
 
 lua_init() {
 	for _l in zapret-lib.lua zapret-antidpi.lua zapret-auto.lua; do
-		[ -f "$FILES/lua/$_l" ] && echo "--lua-init=@$FILES/lua/$_l"
+		if [ -f "$FILES/lua/$_l" ]; then
+			echo "--lua-init=@$FILES/lua/$_l"
+		else
+			log "missing $FILES/lua/$_l, reinstall the module"
+		fi
 	done
 }
 
