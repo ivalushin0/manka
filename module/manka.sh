@@ -596,6 +596,8 @@ start_engine() {
 			;;
 		*) return 0 ;;
 	esac
+	# report the state after the engine is really up (the app reads the status right away)
+	await_daemon "$ENGINE" >/dev/null
 	setup_filter
 	echo "$KEY" > "$RUN/key"
 	echo "$PROFILE" > "$RUN/profile"
