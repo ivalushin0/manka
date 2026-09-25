@@ -3,6 +3,8 @@ package app.manka.core
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 /** Turns app settings + presets into the files the module reads, then (re)starts it. */
@@ -89,9 +91,12 @@ class Applier(
     private fun argsFile(name: String, args: List<String>) = tmp(name, args.joinToString("\n", postfix = "\n"))
 
     /** Writes the configuration and restarts the module. */
-    suspend fun apply(): ModuleStatus {
-        writeConfig()
-        return Module.start()
+    /** Applies from the UI, the worker, the tile and the notification never overlap. */
+    private val lock = Mutex()
+
+    suspend fun apply(): ModuleStatus = lock.withLock {
+        writeConfigLocked()
+        Module.start()
     }
 
     /**
@@ -125,7 +130,9 @@ class Applier(
 
     fun profileKeys(): List<String> = listOf(Profiles.WIFI, Profiles.MOBILE) + prefs.knownWifi.keys.sorted()
 
-    suspend fun writeConfig() {
+    suspend fun writeConfig() = lock.withLock { writeConfigLocked() }
+
+    private suspend fun writeConfigLocked() {
         presets.awaitLoaded()
         val files = linkedMapOf(
             "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(appUids())),
@@ -136,11 +143,16 @@ class Applier(
         }
         for (key in profileKeys()) {
             val cfg = profileConfig(key)
-            files["${Paths.PROFILES}/$key.conf"] = tmp("$key.conf", profileConf(key, cfg))
-            files["${Paths.PROFILES}/$key.args"] = argsFile("$key.args", cfg.args)
+            files["$NEW_PROFILES/$key.conf"] = tmp("$key.conf", profileConf(key, cfg))
+            files["$NEW_PROFILES/$key.args"] = argsFile("$key.args", cfg.args)
         }
-        // profiles of forgotten networks must disappear; one root call for everything
-        val r = Module.copyIn(files, before = "rm -rf ${Paths.PROFILES}", after = excludeListScript())
+        // profiles are swapped in at once (forgotten networks disappear, a running net-apply never
+        // sees a half-written folder); one root call for everything
+        val r = Module.copyIn(
+            files,
+            before = "rm -rf $NEW_PROFILES",
+            after = "rm -rf ${Paths.PROFILES} && mv $NEW_PROFILES ${Paths.PROFILES}\n" + excludeListScript(),
+        )
         if (!r.ok) throw java.io.IOException(r.out.lines().lastOrNull { it.isNotBlank() } ?: "cannot write the configuration")
     }
 
@@ -155,6 +167,8 @@ class Applier(
     }
 
     companion object {
+        private const val NEW_PROFILES = "${Paths.PROFILES}.new"
+
         data class Doh(val plain: String, val urls: List<String>)
 
         /** DNS-over-HTTPS by IP address: no bootstrap DNS needed, the certificates cover the IPs. */
