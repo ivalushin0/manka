@@ -305,4 +305,29 @@
     <string name="notify_not_running">не запущен</string>
     <string name="notify_turn_off">Выключить</string>
     <string name="notify_turn_on">Включить</string>
+    <!-- группы настроек и сводки -->
+    <string name="settings_group_auto">Автоматизация</string>
+    <string name="settings_group_app">Приложение</string>
+    <string name="settings_general">Основное</string>
+    <string name="settings_apps_sites">Приложения и сайты</string>
+    <string name="settings_ports">Порты и параметры</string>
+    <string name="settings_background">Уведомления и обновления</string>
+    <string name="sum_quic">QUIC заблокирован</string>
+    <string name="sum_voice">голос Discord</string>
+    <string name="sum_hotspot">раздача</string>
+    <string name="sum_defaults">всё выключено</string>
+    <string name="sum_reselect">автоподбор</string>
+    <string name="sum_notification">уведомление</string>
+    <string name="sum_store">автообновление наборов</string>
+    <string name="sum_all_off">всё выключено</string>
+    <string name="dns_sum_doh">%1$s, шифрованный</string>
+    <string name="dns_sum_plain">%1$s, без шифрования</string>
+    <string name="apps_sum_exclude">Обход для всех приложений, исключено: %1$d</string>
+    <string name="apps_sum_only">Обход только для выбранных: %1$d</string>
+    <string name="ports_sum">TCP %1$s · UDP %2$s · ByeDPI %3$s</string>
+    <string name="check_sum">каждые %1$d ч</string>
+    <string name="check_sum_off">выключена</string>
+    <string name="module_sum">Версия %1$s · логи, нагрузка</string>
+    <string name="module_sum_missing">Не установлен</string>
+    <string name="backup_sum">Настройки и стратегии в файле</string>
 </resources>

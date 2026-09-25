@@ -307,4 +307,29 @@
     <string name="notify_not_running">not running</string>
     <string name="notify_turn_off">Turn off</string>
     <string name="notify_turn_on">Turn on</string>
+    <!-- settings groups and summaries -->
+    <string name="settings_group_auto">Automation</string>
+    <string name="settings_group_app">App</string>
+    <string name="settings_general">General</string>
+    <string name="settings_apps_sites">Apps and sites</string>
+    <string name="settings_ports">Ports and parameters</string>
+    <string name="settings_background">Notifications and updates</string>
+    <string name="sum_quic">QUIC blocked</string>
+    <string name="sum_voice">Discord voice</string>
+    <string name="sum_hotspot">hotspot</string>
+    <string name="sum_defaults">everything off</string>
+    <string name="sum_reselect">auto re-selection</string>
+    <string name="sum_notification">status notification</string>
+    <string name="sum_store">store auto update</string>
+    <string name="sum_all_off">everything off</string>
+    <string name="dns_sum_doh">%1$s, encrypted</string>
+    <string name="dns_sum_plain">%1$s, unencrypted</string>
+    <string name="apps_sum_exclude">Bypass for all apps, excluded: %1$d</string>
+    <string name="apps_sum_only">Bypass only for selected apps: %1$d</string>
+    <string name="ports_sum">TCP %1$s · UDP %2$s · ByeDPI %3$s</string>
+    <string name="check_sum">every %1$d h</string>
+    <string name="check_sum_off">off</string>
+    <string name="module_sum">Version %1$s · logs, load</string>
+    <string name="module_sum_missing">Not installed</string>
+    <string name="backup_sum">Settings and strategies in a file</string>
 </resources>
