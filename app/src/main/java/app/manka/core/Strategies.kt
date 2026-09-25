@@ -151,6 +151,12 @@ object Strategies {
         "--lua-desync=multisplit:blob=fake_default_tls:tcp_md5:pos=2:nodrop",
         "--lua-desync=fake:blob=fake_default_tls:tcp_ts=-1000 --lua-desync=multidisorder:pos=2",
         "--lua-desync=wssize:wsize=1:scale=6 --lua-desync=multisplit:pos=1",
+        // Flowseal-style (fake SNI of a whitelisted host): the only ones that also opened
+        // youtubei.googleapis.com and Cloudflare-hosted sites without the 16 KB freeze on a test phone
+        "--lua-desync=hostfakesplit:host=www.google.com:tcp_ts=-600000:repeats=4",
+        "--lua-desync=hostfakesplit:host=www.google.com:tcp_ts=-600000:repeats=4:ip_id=zero",
+        "--lua-desync=hostfakesplit:host=www.google.com:tcp_md5:repeats=4",
+        "--lua-desync=fake:blob=fake_default_tls:tls_mod=rnd,dupsid,sni=www.google.com:tcp_ts=-1000:repeats=6 --lua-desync=multisplit:pos=1",
     )
 
     private fun zapret2Full(): List<String> {
