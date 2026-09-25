@@ -26,9 +26,13 @@ class Applier(
         return EngineConfig(args, tcp, udp)
     }
 
-    /** UIDs for APP_UIDS; in whitelist mode Manka itself is included so its health checks see the bypass. */
+    /**
+     * UIDs for APP_UIDS; in whitelist mode Manka itself and the shell user (background checks, see
+     * RootChecker) are included so the checks see the bypass.
+     */
     fun appUids(): List<Int> =
-        if (prefs.appsOnly) (excludedUids() + android.os.Process.myUid()).distinct() else excludedUids()
+        if (prefs.appsOnly) (excludedUids() + android.os.Process.myUid() + app.manka.autoselect.RootChecker.UID).distinct()
+        else excludedUids()
 
     fun excludedUids(): List<Int> {
         val pm = context.packageManager

@@ -100,6 +100,8 @@ data class AutoRequest(
     val byeByeDpi: Boolean = true,
     /** Select a strategy for one service only (see Services); null = the main strategy. */
     val service: String? = null,
+    /** Started by the background check: test through root (Android cuts the app's network in the background). */
+    val background: Boolean = false,
 )
 
 class AutoSelector(
@@ -173,14 +175,19 @@ class AutoSelector(
             total = candidates.size,
             targets = request.targets,
         )
-        val uid = Process.myUid()
+        // background: the test engine serves the shell user and curl runs as it (see RootChecker)
+        val viaRoot = request.background && RootChecker.available()
+        val uid = if (viaRoot) RootChecker.UID else Process.myUid()
+        suspend fun sites(requests: Int, socks: Int? = null) =
+            if (viaRoot) RootChecker.check(request.targets, requests, request.timeoutSec, socks)
+            else SiteChecker(socks).check(request.targets, requests, request.timeoutSec)
         val perfect = HashMap<Engine, Int>()
         val failedInRow = HashMap<Engine, Int>()
         val brokenEngines = HashSet<Engine>()
         try {
             applier.writeConfig()
             Module.run("engine-stop", 60)
-            val baseline = SiteChecker().check(request.targets, 1, request.timeoutSec)
+            val baseline = sites(1)
             _state.update { it.copy(baseline = baseline, phase = Phase.TESTING) }
 
             for ((i, c) in candidates.withIndex()) {
@@ -198,8 +205,7 @@ class AutoSelector(
                     // hostlists of big store presets take a moment to load
                     delay(if (c.preset?.source == PresetSource.STORE) 1500 else 600)
                     val socks = if (engine == Engine.BYEDPI) BYEDPI_TEST_PORT else null
-                    val sites = SiteChecker(socks).check(request.targets, request.requests, request.timeoutSec)
-                    StrategyResult(c, sites)
+                    StrategyResult(c, sites(request.requests, socks))
                 }
                 _state.update { it.copy(results = it.results + result) }
 

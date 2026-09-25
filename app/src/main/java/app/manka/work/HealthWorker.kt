@@ -20,7 +20,7 @@ import app.manka.MankaApp
 import app.manka.R
 import app.manka.autoselect.AutoRequest
 import app.manka.autoselect.ServiceCheck
-import app.manka.autoselect.SiteChecker
+import app.manka.autoselect.Checks
 import app.manka.autoselect.Targets
 import app.manka.core.Engine
 import app.manka.core.Module
@@ -71,7 +71,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val profile = status.ownProfile
         val engine = prefs.engine(profile)
         val targets = prefs.healthTargets.ifEmpty { Targets.groups.first { it.id == "youtube" }.urls }
-        val sites = SiteChecker().check(targets, 1, prefs.autoTimeoutSec)
+        val sites = Checks.sites(targets, 1, prefs.autoTimeoutSec)
         val ok = sites.sumOf { it.ok }
         val total = sites.sumOf { it.total }.coerceAtLeast(1)
         val rate = ok * 100 / total
@@ -102,6 +102,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 includeStore = true,
                 requests = 1,
                 timeoutSec = prefs.autoTimeoutSec,
+                background = true,
             ),
         )
         val best = final.best
@@ -142,6 +143,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                     requests = 1,
                     timeoutSec = prefs.autoTimeoutSec,
                     service = s.id,
+                    background = true,
                 ),
             )
             val best = final.best

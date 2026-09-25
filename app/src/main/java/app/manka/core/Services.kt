@@ -106,6 +106,15 @@ object Services {
     private fun isScope(a: String) = SCOPE.any { a.startsWith(it) }
     private fun isGlobal(a: String) = GLOBAL.any { a == it || a.startsWith(it) }
 
+    /** Ports a set of profiles needs for [proto]; a profile without any port filter needs [fallback]. */
+    private fun portsOf(blocks: List<List<String>>, proto: String, fallback: String): String =
+        Args.ports(
+            blocks.mapNotNull { b ->
+                b.firstOrNull { it.startsWith("--filter-$proto=") }?.substringAfter('=')
+                    ?: fallback.takeIf { b.none { it.startsWith("--filter-tcp=") || it.startsWith("--filter-udp=") } }
+            }.joinToString(","),
+        )
+
     private fun blocks(args: List<String>): List<List<String>> {
         val out = mutableListOf<MutableList<String>>(mutableListOf())
         for (a in args) if (a == "--new") out += mutableListOf<String>() else out.last() += a
@@ -129,16 +138,23 @@ object Services {
         val out = mutableListOf<List<String>>()
         fun collectGlobals(args: List<String>) = args.filter { isGlobal(it) }.forEach { globals += it }
 
+        val svcTcp = mutableListOf<String>()
+        val svcUdp = mutableListOf<String>()
         for (s in services) {
             collectGlobals(s.part.args)
+            val kept = mutableListOf<List<String>>()
             for (b in blocks(s.part.args)) {
                 val body = b.filter { !isGlobal(it) }
                 if (isHostless(body)) {
-                    if (s.keepVoice) out += body
+                    if (s.keepVoice) kept += body
                     continue
                 }
-                out += body.filter { !isScope(it) } + "--hostlist=${s.list}"
+                kept += body.filter { !isScope(it) } + "--hostlist=${s.list}"
             }
+            out += kept
+            // ports of the profiles that are left, not the whole preset (a game filter adds 444-65535)
+            svcTcp += portsOf(kept, "tcp", s.part.tcpPorts)
+            svcUdp += portsOf(kept, "udp", s.part.udpPorts).split(',').filter { it != "443" || "443" in s.part.udpPorts.split(',') }.joinToString(",")
         }
         if (main != null) {
             collectGlobals(main.args)
@@ -149,8 +165,8 @@ object Services {
         out += extra.filter { it.isNotEmpty() }
 
         val args = globals.toList() + out.flatMapIndexed { i, b -> if (i == 0) b else listOf("--new") + b }
-        val tcp = Args.ports((services.map { it.part.tcpPorts } + listOfNotNull(main?.tcpPorts)).joinToString(","))
-        val udp = Args.ports((services.map { it.part.udpPorts } + listOfNotNull(main?.udpPorts)).joinToString(","))
+        val tcp = Args.ports((svcTcp + listOfNotNull(main?.tcpPorts)).joinToString(","))
+        val udp = Args.ports((svcUdp + listOfNotNull(main?.udpPorts)).joinToString(","))
         return Part(args, tcp, udp)
     }
 }

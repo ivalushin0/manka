@@ -222,7 +222,8 @@ setup_byedpi_rules() {
 	done
 	# hotspot clients (IPv4): ciadpi also listens on 0.0.0.0, the guard keeps it off the LAN
 	if [ "$HOTSPOT" = 1 ] && chain_init ipt nat MANKA_NATP PREROUTING; then
-		ipt -t nat -A MANKA_NATP -m addrtype --dst-type LOCAL -j RETURN
+		# no addrtype match in some kernels: then connections to the phone itself are redirected too
+		ipt -t nat -A MANKA_NATP -m addrtype --dst-type LOCAL -j RETURN 2>/dev/null
 		skip_private ipt nat MANKA_NATP dst
 		add_ports ipt nat MANKA_NATP tcp dports "$BYEDPI_PORTS" -j REDIRECT --to-ports "$BYEDPI_PORT"
 	fi
@@ -311,6 +312,8 @@ start_dnsproxy() {
 		[ -d "$_d" ] && _cd="$_cd:$_d"
 	done
 	export SSL_CERT_DIR="${_cd#:}"
+	# the Go runtime keeps far more memory than a DNS forwarder needs (190 MB seen)
+	export GOMEMLIMIT=48MiB GOGC=50
 	start_daemon dns "$BIN/dnsproxy" "" -l "$_lis" -p "$DNS_PORT" --cache --cache-optimistic --timeout=5s "$@"
 	if [ "$(await_daemon dns | tail -n1)" = ok ]; then
 		echo "$_conf" > "$RUN/dns.conf"
@@ -358,7 +361,8 @@ setup_dns() {
 	# hotspot clients that ask a DNS server on the internet directly (the phone's own resolver is
 	# already covered above, it runs on the phone)
 	if [ "$HOTSPOT" = 1 ] && chain_init ipt nat MANKA_DNSP PREROUTING; then
-		ipt -t nat -A MANKA_DNSP -m addrtype --dst-type LOCAL -j RETURN
+		# without addrtype, DNS sent to the phone's own resolver address is redirected too, which is fine
+		ipt -t nat -A MANKA_DNSP -m addrtype --dst-type LOCAL -j RETURN 2>/dev/null
 		if [ "$_to" = local ]; then
 			ipt -t nat -A MANKA_DNSP -p udp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
 			ipt -t nat -A MANKA_DNSP -p tcp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
