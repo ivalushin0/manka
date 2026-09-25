@@ -297,6 +297,20 @@ remove_main_rules() {
 #   DNS_MODE=system untouched
 # IPv6 DNS is refused so the resolver uses IPv4. "Automatic" private DNS (DoT to the network's
 # resolver) is covered too; a resolver picked by name (strict mode) is left alone.
+# Waits (up to 15 s) until dnsproxy has its UDP port open. Redirecting DNS to a port nobody
+# listens on yet makes Android mark the resolver broken, and it then stays unused for up to 30 min.
+dns_listening() {
+	_hex=$(printf ':%04X ' "$DNS_PORT")
+	_i=0
+	while [ $_i -lt 60 ]; do
+		cat /proc/net/udp /proc/net/udp6 2>/dev/null | grep -q "$_hex" && return 0
+		is_running dns || return 1
+		sleep 0.25
+		_i=$((_i + 1))
+	done
+	return 1
+}
+
 start_dnsproxy() {
 	[ -x "$BIN/dnsproxy" ] || { log "dnsproxy missing, reinstall the module"; return 1; }
 	_lis=127.0.0.1
@@ -320,7 +334,7 @@ start_dnsproxy() {
 	# (hundreds of thousands of lines) cost dnsproxy ~250 MB and seconds of CPU at every start
 	start_daemon dns "$BIN/dnsproxy" "" -l "$_lis" -p "$DNS_PORT" --cache --cache-optimistic --timeout=5s \
 		--hosts-file-enabled=false "$@"
-	if [ "$(await_daemon dns | tail -n1)" = ok ]; then
+	if [ "$(await_daemon dns | tail -n1)" = ok ] && dns_listening; then
 		echo "$_conf" > "$RUN/dns.conf"
 		return 0
 	fi
