@@ -185,6 +185,8 @@ setup_nfq() {
 		if [ "$_mode" = test ]; then
 			$_c -t mangle -A $_o -m owner ! --uid-owner "$_tuid" -j RETURN
 		else
+			# root daemons (TG WS Proxy, dnsproxy) need no bypass, and a strategy only disturbs them
+			$_c -t mangle -A $_o -m owner --uid-owner 0 -j RETURN
 			app_gate $_c mangle $_o $_oq
 		fi
 		nfq_out $_c $_oq
