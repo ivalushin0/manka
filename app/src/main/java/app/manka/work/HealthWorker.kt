@@ -22,7 +22,9 @@ import app.manka.autoselect.AutoRequest
 import app.manka.autoselect.ServiceCheck
 import app.manka.autoselect.SiteChecker
 import app.manka.autoselect.Targets
+import app.manka.core.Engine
 import app.manka.core.Module
+import app.manka.core.Services
 import app.manka.core.Profiles
 import app.manka.core.Prefs
 import app.manka.core.StatusNotifier
@@ -72,21 +74,26 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val rate = ok * 100 / total
         prefs.lastCheckTime = System.currentTimeMillis()
         prefs.lastCheckRate = rate
-        runCatching { ServiceCheck.run(prefs, prefs.autoTimeoutSec) }
+        val serviceRates = runCatching { ServiceCheck.run(prefs, prefs.autoTimeoutSec) }.getOrNull()
 
         val expected = prefs.baselineRate(profile).takeIf { it > 0 } ?: 100
         val degraded = rate < 50 && rate < expected - 25
-        if (!degraded) return Result.success()
+        if (degraded) reselectMain(app, profile, status.ssid, engine, targets, rate)
+        if (serviceRates != null && engine != Engine.BYEDPI) reselectServices(app, profile, status.ssid, engine, serviceRates)
+        return Result.success()
+    }
 
+    private suspend fun reselectMain(app: MankaApp, profile: String, ssid: String?, engine: Engine, targets: List<String>, rate: Int) {
+        val prefs = app.prefs
         if (!prefs.autoReselect) {
             notify(applicationContext, applicationContext.getString(R.string.notify_degraded, rate))
-            return Result.success()
+            return
         }
         val final = app.autoSelector.run(
             AutoRequest(
                 engines = listOf(engine),
                 profile = profile,
-                profileLabel = status.ssid,
+                profileLabel = ssid,
                 targets = targets,
                 full = false,
                 includeStore = true,
@@ -96,12 +103,51 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         )
         val best = final.best
         if (best != null && best.percent > rate) {
-            app.autoSelector.applyResult(best, profile, status.ssid)
+            app.autoSelector.applyResult(best, profile, ssid, null)
             notify(applicationContext, applicationContext.getString(R.string.notify_reselected, best.percent))
         } else {
             notify(applicationContext, applicationContext.getString(R.string.notify_reselect_failed, rate))
         }
-        return Result.success()
+    }
+
+    /** Services with their own strategy that stopped opening get a new one (or a notification). */
+    private suspend fun reselectServices(app: MankaApp, profile: String, ssid: String?, engine: Engine, rates: Map<String, Int>) {
+        val prefs = app.prefs
+        val ctx = applicationContext
+        Services.all.forEachIndexed { i, s ->
+            val own = prefs.servicePreset(engine, profile, s.id) ?: return@forEachIndexed
+            if (own == Services.OFF) return@forEachIndexed
+            val groupRates = s.targetGroups.mapNotNull { rates[it] }
+            if (groupRates.isEmpty()) return@forEachIndexed
+            val rate = groupRates.average().toInt()
+            if (rate >= 50) return@forEachIndexed
+            val id = NOTIFICATION_ID + 1 + i
+            if (!prefs.autoReselect) {
+                notify(ctx, ctx.getString(R.string.notify_service_down, s.title), id)
+                return@forEachIndexed
+            }
+            val targets = Targets.groups.filter { it.id in s.targetGroups }.flatMap { it.urls }
+            val final = app.autoSelector.run(
+                AutoRequest(
+                    engines = listOf(engine),
+                    profile = profile,
+                    profileLabel = ssid,
+                    targets = targets,
+                    full = false,
+                    includeStore = true,
+                    requests = 1,
+                    timeoutSec = prefs.autoTimeoutSec,
+                    service = s.id,
+                ),
+            )
+            val best = final.best
+            if (best != null && best.percent > rate) {
+                app.autoSelector.applyResult(best, profile, ssid, s.id)
+                notify(ctx, ctx.getString(R.string.notify_service_reselected, s.title, best.percent), id)
+            } else {
+                notify(ctx, ctx.getString(R.string.notify_service_failed, s.title), id)
+            }
+        }
     }
 
     companion object {
@@ -123,7 +169,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             wm.enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
         }
 
-        fun notify(context: Context, text: String) {
+        fun notify(context: Context, text: String, id: Int = NOTIFICATION_ID) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
                 android.os.Build.VERSION.SDK_INT >= 33
             ) return
@@ -140,7 +186,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 .setAutoCancel(true)
                 .build()
             @Suppress("MissingPermission")
-            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, n)
+            NotificationManagerCompat.from(context).notify(id, n)
         }
     }
 }

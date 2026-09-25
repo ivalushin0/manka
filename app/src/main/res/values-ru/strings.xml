@@ -223,6 +223,9 @@
     <string name="notify_degraded">Стратегия перестала работать: открывается только %1$d%% сайтов. Откройте Manka, чтобы подобрать новую.</string>
     <string name="notify_reselected">Стратегия подобрана заново автоматически: открывается %1$d%% сайтов.</string>
     <string name="notify_reselect_failed">Сайты перестали открываться (%1$d%%), а лучшей стратегии не нашлось.</string>
+    <string name="notify_service_down">%1$s перестал открываться. Откройте Manka, чтобы подобрать для него стратегию.</string>
+    <string name="notify_service_reselected">%1$s: стратегия подобрана заново автоматически (%2$d%%).</string>
+    <string name="notify_service_failed">%1$s перестал открываться, а лучшей стратегии не нашлось.</string>
 
     <!-- network profiles / history / all engines -->
     <string name="net_wifi_other">Wi-Fi (остальные)</string>

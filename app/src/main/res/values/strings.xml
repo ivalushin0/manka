@@ -225,6 +225,9 @@
     <string name="notify_degraded">The strategy stopped working: only %1$d%% of sites open. Open Manka to select a new one.</string>
     <string name="notify_reselected">The strategy was re-selected automatically: %1$d%% of sites open.</string>
     <string name="notify_reselect_failed">Sites stopped opening (%1$d%%) and no better strategy was found.</string>
+    <string name="notify_service_down">%1$s stopped opening. Open Manka to select a new strategy for it.</string>
+    <string name="notify_service_reselected">%1$s: new strategy selected automatically (%2$d%%).</string>
+    <string name="notify_service_failed">%1$s stopped opening and no better strategy was found.</string>
 
     <!-- network profiles / history / all engines -->
     <string name="net_wifi_other">Other Wi-Fi</string>
