@@ -316,7 +316,10 @@ start_dnsproxy() {
 	export SSL_CERT_DIR="${_cd#:}"
 	# the Go runtime keeps far more memory than a DNS forwarder needs (190 MB seen)
 	export GOMEMLIMIT=48MiB GOGC=50
-	start_daemon dns "$BIN/dnsproxy" "" -l "$_lis" -p "$DNS_PORT" --cache --cache-optimistic --timeout=5s "$@"
+	# no hosts file: Android applies it before a query leaves the phone, and ad-block hosts files
+	# (hundreds of thousands of lines) cost dnsproxy ~250 MB and seconds of CPU at every start
+	start_daemon dns "$BIN/dnsproxy" "" -l "$_lis" -p "$DNS_PORT" --cache --cache-optimistic --timeout=5s \
+		--hosts-file-enabled=false "$@"
 	if [ "$(await_daemon dns | tail -n1)" = ok ]; then
 		echo "$_conf" > "$RUN/dns.conf"
 		return 0
