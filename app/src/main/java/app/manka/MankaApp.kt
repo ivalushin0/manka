@@ -9,6 +9,7 @@ import app.manka.autoselect.AutoSelector
 import app.manka.core.Applier
 import app.manka.core.PresetRepository
 import app.manka.core.Prefs
+import app.manka.core.StatusNotifier
 import app.manka.store.StoreRepository
 import app.manka.work.HealthWorker
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +48,9 @@ class MankaApp : Application() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_STATUS, getString(R.string.channel_status), NotificationManager.IMPORTANCE_DEFAULT),
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(StatusNotifier.CHANNEL, getString(R.string.channel_persistent), NotificationManager.IMPORTANCE_LOW),
         )
     }
 

@@ -60,13 +60,23 @@ import app.manka.ui.Mono
 import app.manka.ui.ScreenScaffold
 import app.manka.ui.SwitchRow
 
+/**
+ * Strategies of an engine in a network profile. With [service] it picks that service's own strategy
+ * (see Services) instead of the main one.
+ */
 @Composable
-fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: () -> Unit) {
+fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, service: String? = null, onBack: () -> Unit) {
     val all by vm.presets.presets.collectAsState()
     val busy by vm.busy.collectAsState()
     val version by vm.prefs.version.collectAsState()
     val list = remember(all, engine) { all.filter { it.engine == engine } }
-    val activeId = remember(all, version) { vm.presets.active(engine, profile).id }
+    val svc = app.manka.core.Services.byId(service)
+    val activeId = remember(all, version) {
+        if (svc != null) vm.prefs.servicePreset(engine, profile, svc.id) ?: "" else vm.presets.active(engine, profile).id
+    }
+    fun select(id: String?) {
+        if (svc != null) vm.selectServicePreset(engine, profile, svc.id, id) else if (id != null) vm.selectPreset(engine, profile, id)
+    }
     var editing by remember { mutableStateOf<Preset?>(null) }
     var expanded by remember { mutableStateOf<String?>(null) }
     var openGroups by remember { mutableStateOf(setOf<PresetSource>()) }
@@ -80,7 +90,7 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: ()
     }
 
     ScreenScaffold(
-        title = stringResource(R.string.presets_title, engine.title) + " · " + profileTitle(vm, profile),
+        title = (svc?.let { it.title + " · " } ?: "") + stringResource(R.string.presets_title, engine.title) + " · " + profileTitle(vm, profile),
         onBack = onBack,
         busy = busy,
         floating = {
@@ -96,6 +106,15 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: ()
             contentPadding = pad,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (svc != null) {
+                item(key = "svc-hint") { Hint(stringResource(R.string.service_strategy_hint, svc.title)) }
+                item(key = "svc-main") {
+                    ChoiceCard(stringResource(R.string.service_use_main), activeId == "") { select(null) }
+                }
+                item(key = "svc-off") {
+                    ChoiceCard(stringResource(R.string.service_off), activeId == app.manka.core.Services.OFF) { select(app.manka.core.Services.OFF) }
+                }
+            }
             PresetSource.entries.forEach { source ->
                 val group = list.filter { it.source == source }
                 if (group.isEmpty()) return@forEach
@@ -135,7 +154,7 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: ()
                         active = p.id == activeId,
                         expanded = expanded == p.id,
                         onExpand = { expanded = if (expanded == p.id) null else p.id },
-                        onSelect = { vm.selectPreset(engine, profile, p.id) },
+                        onSelect = { select(p.id) },
                         onEdit = { editing = it },
                     )
                 }
@@ -151,7 +170,7 @@ fun PresetsScreen(vm: MainViewModel, engine: Engine, profile: String, onBack: ()
             onSave = { saved ->
                 vm.presets.save(saved)
                 editing = null
-                if (saved.id == vm.prefs.activePreset(engine, profile) && vm.prefs.enabled) vm.apply()
+                if (saved.id == activeId && vm.prefs.enabled) vm.apply()
             },
         )
     }
@@ -320,4 +339,23 @@ private fun PresetEditor(preset: Preset, onDismiss: () -> Unit, onSave: (Preset)
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** A plain radio choice styled like a strategy card. */
+@Composable
+private fun ChoiceCard(title: String, selected: Boolean, onClick: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClick = onClick).padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(selected = selected, onClick = onClick)
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
 }

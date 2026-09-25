@@ -6,12 +6,20 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.manka.MankaApp
 import app.manka.R
+import android.net.Uri
+import app.manka.autoselect.ServiceCheck
+import app.manka.core.Backup
 import app.manka.core.Engine
 import app.manka.core.Module
 import app.manka.core.ModuleStatus
 import app.manka.core.Profiles
+import app.manka.core.StatusNotifier
 import app.manka.core.Updater
+import app.manka.work.HealthWorker
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -103,7 +111,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _status.value = Module.status()
             _loaded.value = true
+            StatusNotifier.update(app, _status.value)
             val s = _status.value
+            if (prefs.enabled && s.engineRunning && !autoSelector.state.value.running &&
+                System.currentTimeMillis() - prefs.serviceStatusTime > SERVICE_CHECK_INTERVAL
+            ) {
+                checkServices()
+            }
             if (prefs.moduleUpdatePending && s.rootOk) {
                 // first start after a self-update: bring the module up to the bundled version
                 prefs.moduleUpdatePending = false
@@ -132,6 +146,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 _status.value = Module.status()
                 _busy.value = false
+                StatusNotifier.update(app, _status.value)
             }
         }
     }
@@ -185,6 +200,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (prefs.enabled && prefs.engine(key) == engine) apply()
     }
 
+    // ---- service status on the home screen
+    private val _checkingServices = MutableStateFlow(false)
+    val checkingServices: StateFlow<Boolean> = _checkingServices
+
+    fun checkServices() {
+        if (_checkingServices.value) return
+        _checkingServices.value = true
+        app.appScope.launch {
+            try {
+                ServiceCheck.run(prefs, prefs.autoTimeoutSec)
+            } finally {
+                _checkingServices.value = false
+            }
+        }
+    }
+
+    // ---- backup
+    fun exportBackup(uri: Uri) = op {
+        val text = Backup.export(app, prefs)
+        withContext(Dispatchers.IO) {
+            app.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } ?: throw IOException("cannot write")
+        }
+        say(R.string.backup_saved)
+    }
+
+    fun importBackup(uri: Uri) = op(R.string.backup_failed) {
+        val text = withContext(Dispatchers.IO) {
+            app.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() } ?: throw IOException("cannot read")
+        }
+        Backup.import(app, prefs, presets, text)
+        HealthWorker.schedule(app, prefs)
+        if (prefs.enabled || prefs.tgws) app.applier.apply()
+        say(R.string.backup_restored)
+    }
+
+    /** Own strategy of a service in a profile: preset id, Services.OFF, or null = the main strategy. */
+    fun selectServicePreset(engine: Engine, key: String, service: String, id: String?) {
+        remember(key)
+        if (!prefs.hasOwnEngine(key)) prefs.setEngine(key, engine)
+        prefs.setServicePreset(engine, key, service, id)
+        if (prefs.enabled && prefs.engine(key) == engine) apply()
+    }
+
     fun installModule() = op(R.string.module_install_failed) {
         val r = Module.install(app)
         if (!r.ok) throw IllegalStateException(r.out.lines().lastOrNull { it.isNotBlank() } ?: "code ${r.code}")
@@ -197,5 +255,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000L
+        private const val SERVICE_CHECK_INTERVAL = 60 * 60 * 1000L
     }
 }

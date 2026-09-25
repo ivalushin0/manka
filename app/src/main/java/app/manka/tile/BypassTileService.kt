@@ -5,6 +5,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import app.manka.MankaApp
 import app.manka.core.Profiles
+import app.manka.core.StatusNotifier
 import kotlinx.coroutines.launch
 
 /** Quick settings tile: turns DPI bypass on/off. */
@@ -18,7 +19,7 @@ class BypassTileService : TileService() {
         val app = MankaApp.of(this)
         app.prefs.enabled = !app.prefs.enabled
         render()
-        app.appScope.launch { app.applier.apply() }
+        app.appScope.launch { StatusNotifier.update(app, app.applier.apply()) }
     }
 
     private fun render() {

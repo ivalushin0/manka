@@ -46,7 +46,8 @@ import app.manka.ui.SectionCard
 private fun runTitle(vm: MainViewModel, run: HistoryRun): String {
     val engine = run.engine?.title ?: stringResource(R.string.auto_all_engines)
     val network = run.profileLabel ?: profileTitle(vm, run.profile)
-    return "$engine · $network"
+    val service = app.manka.core.Services.byId(run.service)?.let { " · " + it.title } ?: ""
+    return "$engine · $network$service"
 }
 
 /** Past auto selections: tap one to see its strategies and apply any of them. */
@@ -108,7 +109,7 @@ fun HistoryRunScreen(vm: MainViewModel, id: String, onBack: () -> Unit) {
             }
             items(run.results.withIndex().toList(), key = { it.index }) { (i, r) ->
                 SavedResultCard(i + 1, r, showEngine = run.engine == null, enabled = !busy) {
-                    vm.op { vm.autoSelector.applyStrategy(r, run.profile, run.profileLabel, run.targets) }
+                    vm.op { vm.autoSelector.applyStrategy(r, run.profile, run.profileLabel, run.targets, run.service) }
                     vm.say(R.string.auto_applied)
                 }
             }

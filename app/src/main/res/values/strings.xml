@@ -256,4 +256,55 @@
     <string name="diag">App diagnostics</string>
     <string name="diag_started">%1$s: checking DNS, IPv6 and the app hosts…</string>
     <string name="diag_all">All</string>
+    <!-- per-service strategies -->
+    <string name="service_strategies">Service strategies (%1$d own)</string>
+    <string name="service_strategies_hint">A service can get its own strategy, limited to its domains. Everything else keeps the main strategy.</string>
+    <string name="service_use_main">Main strategy</string>
+    <string name="service_off">Do not process</string>
+    <string name="service_strategy_hint">This strategy only applies to %1$s domains, the main strategy handles the rest. \"Do not process\" leaves the service alone (if it works without bypass).</string>
+    <string name="services_title">Services</string>
+    <string name="services_never">Not checked yet.</string>
+    <string name="services_time">Checked %1$s</string>
+    <string name="services_tap_hint">Tap a service that does not work to select a strategy for it.</string>
+    <string name="services_check">Check now</string>
+    <string name="services_checking">Checking…</string>
+    <string name="auto_target">What to select for</string>
+    <string name="auto_target_main">Main strategy</string>
+    <string name="auto_target_all_services">Every service in a row</string>
+    <string name="auto_target_main_hint">The main strategy of the network, used for all sites.</string>
+    <string name="auto_target_service_hint">zapret / zapret2 only: the strategy is tested on the app hosts of the service and becomes its own strategy. \"Every service in a row\" selects for all of them one by one and applies the winners.</string>
+    <string name="auto_queue_title">Selection by service</string>
+    <string name="auto_queue_testing">%1$s — testing…</string>
+    <string name="auto_queue_waiting">%1$s — waiting</string>
+    <string name="auto_queue_none">%1$s — nothing worked</string>
+    <string name="auto_queue_result">%1$s — %2$d%%, applied</string>
+    <string name="auto_queue_applied">The best strategies were saved as the services\' own strategies.</string>
+    <!-- bypass options -->
+    <string name="discord_voice">Discord voice (UDP)</string>
+    <string name="discord_voice_hint">zapret / zapret2: an extra profile for Discord voice and video calls. Calls then go through the engine, which costs some battery during calls.</string>
+    <string name="hotspot">Share bypass via hotspot</string>
+    <string name="hotspot_hint">Devices connected to the phone (Wi-Fi hotspot, USB, Bluetooth) get the bypass and the encrypted DNS too.</string>
+    <string name="auto_store_update">Update store kits automatically</string>
+    <string name="auto_store_update_hint">Every few days, with the background check: installed kits and lists are updated to their latest release.</string>
+    <string name="status_notification">Status notification</string>
+    <string name="status_notification_hint">Shows engine and network in the shade, with an on/off button.</string>
+    <string name="load_title">Load since start (CPU · memory):</string>
+    <string name="load_line">%1$s: %2$s%% · %3$d MB</string>
+    <string name="load_hint">Average CPU share since the process started. Without connbytes in the kernel more packets go through the engine; zapret usually costs less than ByeDPI, TG WS Proxy mostly depends on how much Telegram is used.</string>
+    <!-- backup -->
+    <string name="backup_title">Backup</string>
+    <string name="backup_hint">Settings, network profiles, chosen and own strategies, app list — in one file.</string>
+    <string name="backup_save">Save to file</string>
+    <string name="backup_load">Restore from file</string>
+    <string name="backup_saved">Backup saved</string>
+    <string name="backup_restored">Settings restored</string>
+    <string name="backup_failed">Could not restore: %1$s</string>
+    <string name="update_changes">What\'s new:</string>
+    <!-- status notification -->
+    <string name="channel_persistent">Bypass status</string>
+    <string name="notify_on">Bypass on</string>
+    <string name="notify_off">Bypass off</string>
+    <string name="notify_not_running">not running</string>
+    <string name="notify_turn_off">Turn off</string>
+    <string name="notify_turn_on">Turn on</string>
 </resources>

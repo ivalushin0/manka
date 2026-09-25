@@ -40,6 +40,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.AssistChip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +57,9 @@ import app.manka.R
 import app.manka.core.Engine
 import app.manka.core.Module
 import app.manka.core.Profiles
+import app.manka.core.Services
+import app.manka.autoselect.ServiceCheck
+import app.manka.autoselect.Targets
 import app.manka.switchTab
 import app.manka.ui.Hint
 import app.manka.ui.MainViewModel
@@ -204,6 +213,9 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                     }
                     Button(onClick = { nav.switchTab("auto") }) { Text(stringResource(R.string.strategy_autoselect)) }
                 }
+                if (pEngine != Engine.BYEDPI) {
+                    ServiceStrategies(vm, nav, pEngine, picked, prefsVersion)
+                }
                 if (Profiles.isSsid(picked) && prefs.knownWifi.containsKey(picked)) {
                     TextButton(onClick = { vm.forgetWifi(picked) }) { Text(stringResource(R.string.profile_forget)) }
                 }
@@ -217,6 +229,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                     )
                 }
             }
+
+            if (prefs.enabled && status.usable) ServiceStatusCard(vm, nav, prefsVersion)
 
             // ---- telegram
             SectionCard(title = stringResource(R.string.telegram)) {
@@ -266,3 +280,86 @@ fun profileTitle(vm: MainViewModel, key: String): String = when {
         ?: vm.status.value.ssid?.takeIf { Profiles.wifiKey(it) == key }
         ?: stringResource(R.string.net_wifi)
 }
+
+/** zapret / zapret2: own strategies of YouTube, Instagram, ... in the profile (folded). */
+@Composable
+private fun ServiceStrategies(vm: MainViewModel, nav: NavHostController, engine: Engine, profile: String, version: Int) {
+    var open by remember { mutableStateOf(false) }
+    val presets by vm.presets.presets.collectAsState()
+    val own = remember(version, presets, engine, profile) {
+        Services.all.associate { it.id to vm.prefs.servicePreset(engine, profile, it.id) }
+    }
+    val count = own.values.count { it != null }
+    Row(
+        Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.service_strategies, count),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
+    }
+    if (!open) return
+    Hint(stringResource(R.string.service_strategies_hint))
+    Services.all.forEach { s ->
+        val id = own[s.id]
+        val value = when (id) {
+            null -> stringResource(R.string.service_use_main)
+            Services.OFF -> stringResource(R.string.service_off)
+            else -> vm.presets.byId(id)?.name ?: id
+        }
+        Row(
+            Modifier.fillMaxWidth().clickable { nav.navigate("presets/${engine.id}/$profile?service=${s.id}") }.padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(s.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.4f))
+            Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2,
+                modifier = Modifier.weight(0.6f))
+        }
+    }
+}
+
+/** Last check of every service ("YouTube ✓ · Instagram ✗"); a failing one leads to auto selection. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ServiceStatusCard(vm: MainViewModel, nav: NavHostController, version: Int) {
+    val checking by vm.checkingServices.collectAsState()
+    val status = remember(version) { vm.prefs.serviceStatus }
+    val time = remember(version) { vm.prefs.serviceStatusTime }
+    SectionCard(title = stringResource(R.string.services_title)) {
+        if (status.isEmpty()) {
+            Hint(stringResource(R.string.services_never))
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ServiceCheck.GROUPS.forEach { id ->
+                    val rate = status[id] ?: return@forEach
+                    val group = Targets.groups.firstOrNull { it.id == id } ?: return@forEach
+                    val mark = when {
+                        rate >= 100 -> "✓"
+                        rate <= 0 -> "✗"
+                        else -> "~"
+                    }
+                    AssistChip(
+                        onClick = {
+                            if (rate < 100) {
+                                vm.prefs.autoGroups = setOf(id)
+                                nav.switchTab("auto")
+                            }
+                        },
+                        label = { Text("$mark ${shortGroupTitle(stringResource(group.title))}") },
+                    )
+                }
+            }
+            if (time > 0) Hint(stringResource(R.string.services_time, DateUtils.getRelativeTimeSpanString(time).toString()))
+            if (status.values.any { it < 100 }) Hint(stringResource(R.string.services_tap_hint))
+        }
+        OutlinedButton(onClick = { vm.checkServices() }, enabled = !checking) {
+            Text(stringResource(if (checking) R.string.services_checking else R.string.services_check))
+        }
+    }
+}
+
+/** "Instagram (app hosts)" -> "Instagram" */
+private fun shortGroupTitle(title: String) = title.substringBefore(" (").trim()

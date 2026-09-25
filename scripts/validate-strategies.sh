@@ -31,6 +31,7 @@ done
 LUA=$(dirname "$(find "$WORK/zapret2/src" -name zapret-lib.lua -path '*/lua/*' | head -n1)")
 sudo cp -f "$LUA"/*.lua /data/adb/manka/files/lua/
 echo example.com | sudo tee /data/adb/manka/lists/manka-exclude.txt >/dev/null
+for s in youtube meta tiktok discord; do echo example.com | sudo tee "/data/adb/manka/lists/svc-$s.txt" >/dev/null; done
 
 git clone -q --depth 1 https://github.com/hufrea/byedpi.git "$WORK/byedpi"
 make -s -C "$WORK/byedpi"

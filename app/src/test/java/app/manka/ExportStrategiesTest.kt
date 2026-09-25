@@ -3,6 +3,7 @@ package app.manka
 import app.manka.core.Args
 import app.manka.core.Engine
 import app.manka.core.PresetRenderer
+import app.manka.core.Services
 import app.manka.core.Strategies
 import app.manka.core.Z1ToZ2
 import org.junit.Test
@@ -35,5 +36,24 @@ class ExportStrategiesTest {
             Args.resolve(converted.args, fakeSni = "www.google.com").joinToString("\u001f")
         }
         File(out, "zapret2-legacy.txt").writeText(legacy.joinToString("\n", postfix = "\n"))
+
+        // per-service strategies merged into one command line, plus the Discord voice profile
+        for (engine in listOf(Engine.ZAPRET, Engine.ZAPRET2)) {
+            fun part(t: String): Services.Part {
+                val r = PresetRenderer.fromWinws(Args.split(t), null, null)
+                return Services.Part(Args.resolve(r.args, fakeSni = "www.google.com"), r.tcpPorts ?: "80,443", r.udpPorts ?: "443")
+            }
+            val builtin = Strategies.builtinPresets().filter { it.engine == engine }.map { it.template }
+            val candidates = Strategies.candidates(engine, full = false).map { it.template }
+            val merged = Services.merge(
+                main = part(builtin[0]),
+                services = Services.all.mapIndexed { i, s ->
+                    Services.Scoped(Services.listPath(s.id), part(candidates[i % candidates.size]), s.keepVoice)
+                },
+                excluded = Services.all.map { Services.listPath(it.id) },
+                extra = listOf(Services.voiceArgs(engine)),
+            )
+            File(out, "${engine.id}.txt").appendText(merged.args.joinToString("\u001f") + "\n")
+        }
     }
 }

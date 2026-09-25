@@ -31,6 +31,8 @@ data class HistoryRun(
     val engine: Engine? = null,
     val profile: String,
     val profileLabel: String? = null,
+    /** Service the selection was for (see Services); null = the main strategy. */
+    val service: String? = null,
     val targets: List<String>,
     val baselineOk: Int,
     val baselineTotal: Int,

@@ -129,15 +129,16 @@ private fun MankaNav(vm: MainViewModel) {
             composable("apps") { AppsScreen(vm) { nav.popBackStack() } }
             composable("logs") { LogsScreen(vm) { nav.popBackStack() } }
             composable(
-                "presets/{engine}/{net}",
+                "presets/{engine}/{net}?service={service}",
                 arguments = listOf(
                     navArgument("engine") { type = NavType.StringType },
                     navArgument("net") { type = NavType.StringType },
+                    navArgument("service") { type = NavType.StringType; nullable = true; defaultValue = null },
                 ),
             ) { e ->
                 val engine = Engine.of(e.arguments?.getString("engine")) ?: Engine.BYEDPI
                 val profile = e.arguments?.getString("net") ?: "wifi"
-                PresetsScreen(vm, engine, profile) { nav.popBackStack() }
+                PresetsScreen(vm, engine, profile, e.arguments?.getString("service")) { nav.popBackStack() }
             }
             composable("history") { HistoryScreen(vm, nav) { nav.popBackStack() } }
             composable(

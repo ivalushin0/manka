@@ -9,6 +9,8 @@ import app.manka.core.Preset
 import app.manka.core.PresetRenderer
 import app.manka.core.PresetRepository
 import app.manka.core.PresetSource
+import app.manka.core.Service
+import app.manka.core.Services
 import app.manka.core.Prefs
 import app.manka.core.Profiles
 import app.manka.core.Strategies
@@ -55,6 +57,8 @@ data class AutoState(
     /** Network profile the result belongs to and its name (SSID for a Wi-Fi network). */
     val profile: String? = null,
     val profileLabel: String? = null,
+    /** Service (see Services) the selection is for; null = the main strategy. */
+    val service: String? = null,
     val current: Int = 0,
     val total: Int = 0,
     val currentName: String = "",
@@ -92,6 +96,8 @@ data class AutoRequest(
     val stopAfterPerfect: Int = 3,
     /** Also test the ByeByeDPI strategy list (downloaded from its repository). */
     val byeByeDpi: Boolean = true,
+    /** Select a strategy for one service only (see Services); null = the main strategy. */
+    val service: String? = null,
 )
 
 class AutoSelector(
@@ -107,7 +113,7 @@ class AutoSelector(
     private var job: Job? = null
 
     fun start(request: AutoRequest) {
-        if (_state.value.running) return
+        if (_state.value.running || _queue.value.active) return
         job = scope.launch { run(request) }
     }
 
@@ -116,7 +122,8 @@ class AutoSelector(
     }
 
     fun candidatesFor(request: AutoRequest, external: List<String> = emptyList()): List<Strategies.Candidate> = request.engines.flatMap { engine ->
-        val current = presets.active(engine, request.profile)
+        val current = request.service?.let { s -> presets.byId(prefs.servicePreset(engine, request.profile, s))?.takeIf { it.engine == engine } }
+            ?: presets.active(engine, request.profile)
         val list = mutableListOf(Strategies.Candidate(current.name, current.template, current, engine))
         if (request.includeStore && engine != Engine.BYEDPI) {
             presets.all(engine).filter { it.source == PresetSource.STORE && it.id != current.id }
@@ -151,6 +158,7 @@ class AutoSelector(
             engines = request.engines,
             profile = request.profile,
             profileLabel = request.profileLabel,
+            service = request.service,
             total = candidates.size,
             targets = request.targets,
         )
@@ -235,6 +243,7 @@ class AutoSelector(
                     engine = request.engines.singleOrNull(),
                     profile = request.profile,
                     profileLabel = request.profileLabel,
+                    service = request.service,
                     targets = request.targets,
                     baselineOk = s.baseline.count { it.ok > 0 },
                     baselineTotal = s.baseline.size,
@@ -246,11 +255,21 @@ class AutoSelector(
     }
 
     /** Saves a tested strategy as the active preset of its engine in [profile] and applies it. */
-    suspend fun applyResult(result: StrategyResult, profile: String, label: String?) =
-        applyStrategy(result.saved().copy(sites = emptyList()), profile, label, _state.value.targets)
+    suspend fun applyResult(result: StrategyResult, profile: String, label: String?, service: String? = _state.value.service) =
+        applyStrategy(result.saved().copy(sites = emptyList()), profile, label, _state.value.targets, service)
 
-    /** Also used from the history screen. */
-    suspend fun applyStrategy(result: SavedResult, profile: String, label: String?, targets: List<String>) {
+    /**
+     * Also used from the history screen. With [service] the strategy becomes that service's own
+     * strategy (zapret / zapret2 only), otherwise the main strategy of the profile.
+     */
+    suspend fun applyStrategy(
+        result: SavedResult,
+        profile: String,
+        label: String?,
+        targets: List<String>,
+        service: String? = null,
+        applyNow: Boolean = true,
+    ) {
         val engine = result.engine ?: presets.byId(result.presetId)?.engine ?: Engine.BYEDPI
         if (Profiles.isSsid(profile) && !label.isNullOrBlank()) prefs.rememberWifi(label)
         val preset = presets.byId(result.presetId)?.takeIf { it.engine == engine }
@@ -258,17 +277,71 @@ class AutoSelector(
             ?: Preset(
                 id = presets.newId("auto"),
                 engine = engine,
-                name = "${SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()).format(Date())} · ${result.name.take(48)}",
+                name = "${SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()).format(Date())} · " +
+                    (Services.byId(service)?.let { "${it.title} · " } ?: "") + result.name.take(48),
                 source = PresetSource.AUTO,
                 template = result.template,
                 score = result.percent,
             ).also { presets.save(it) }
-        prefs.setActivePreset(engine, profile, preset.id)
+        if (service != null && engine != Engine.BYEDPI) {
+            prefs.setServicePreset(engine, profile, service, preset.id)
+        } else {
+            prefs.setActivePreset(engine, profile, preset.id)
+            prefs.setBaselineRate(profile, result.percent)
+            if (targets.isNotEmpty()) prefs.healthTargets = targets
+        }
         prefs.setEngine(profile, engine)
-        prefs.setBaselineRate(profile, result.percent)
-        if (targets.isNotEmpty()) prefs.healthTargets = targets
         prefs.enabled = true
-        applier.apply()
+        if (applyNow) applier.apply()
+    }
+
+    // ------------------------------------------------------------------ every service in a row
+
+    data class QueueState(
+        val services: List<String> = emptyList(),
+        /** Service id -> best result (null = nothing worked); filled as services finish. */
+        val done: Map<String, StrategyResult?> = emptyMap(),
+        val current: String? = null,
+        val finished: Boolean = false,
+    ) {
+        val active get() = services.isNotEmpty() && !finished
+    }
+
+    private val _queue = MutableStateFlow(QueueState())
+    val queue: StateFlow<QueueState> = _queue
+
+    /**
+     * Selects a strategy for every service one after another and applies the winners as the
+     * services' own strategies. [base] gives the engine and options, targets come from each service.
+     */
+    fun startServices(base: AutoRequest, services: List<Service>) {
+        if (_state.value.running || _queue.value.active) return
+        job = scope.launch {
+            _queue.value = QueueState(services = services.map { it.id })
+            try {
+                for (s in services) {
+                    if (!coroutineContext.isActive) break
+                    _queue.update { it.copy(current = s.id) }
+                    val targets = Targets.groups.filter { it.id in s.targetGroups }.flatMap { it.urls }
+                    val final = run(base.copy(service = s.id, targets = targets))
+                    if (final.phase == Phase.CANCELLED) break
+                    val best = final.best
+                    _queue.update { it.copy(done = it.done + (s.id to best)) }
+                    if (best != null) {
+                        applyStrategy(best.saved().copy(sites = emptyList()), base.profile, base.profileLabel, targets, s.id, applyNow = false)
+                    }
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    _queue.update { it.copy(current = null, finished = true) }
+                    if (_queue.value.done.values.any { it != null }) applier.apply()
+                }
+            }
+        }
+    }
+
+    fun resetQueue() {
+        if (!_queue.value.active) _queue.value = QueueState()
     }
 
     fun reset() {

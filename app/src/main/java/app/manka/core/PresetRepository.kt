@@ -28,6 +28,12 @@ class PresetRepository(private val context: Context, private val prefs: Prefs) {
         reloadStore()
     }
 
+    /** Own strategies were replaced on disk (backup restore). */
+    fun reloadUser() {
+        userPresets = runCatching { json.decodeFromString<List<Preset>>(file.readText()) }.getOrDefault(emptyList())
+        publish()
+    }
+
     fun reloadStore() {
         storePresets = KitLoader.loadInstalled(context)
         publish()

@@ -70,6 +70,7 @@ class Applier(
         kv("APPS_MODE", if (prefs.appsOnly) "only" else "exclude")
         kv("APP_UIDS", "\"" + uids.joinToString(" ") + "\"")
         kv("DEBUG", if (prefs.debugLogs) 1 else 0)
+        kv("HOTSPOT", if (prefs.hotspot) 1 else 0)
         val dns = prefs.dnsServer.trim()
         val doh = DOH[dns]
         kv("DNS_MODE", if (doh != null) "doh" else if (IPV4.matches(dns)) "plain" else "system")
@@ -89,10 +90,33 @@ class Applier(
         return Module.start()
     }
 
-    /** Engine + active strategy of a network profile (inherited from the parent profile if not set). */
+    /**
+     * Engine + active strategy of a network profile (inherited from the parent profile if not set),
+     * with the per-service strategies and the Discord voice profile merged in for zapret / zapret2.
+     */
     fun profileConfig(key: String): EngineConfig {
         val engine = prefs.engine(key)
-        return engineConfig(engine, presets.active(engine, key))
+        val main = engineConfig(engine, presets.active(engine, key))
+        if (engine == Engine.BYEDPI) return main
+        val overrides = Services.all.mapNotNull { s -> prefs.servicePreset(engine, key, s.id)?.let { s to it } }
+        val voice = prefs.discordVoice
+        if (overrides.isEmpty() && !voice) return main
+
+        val scoped = overrides.mapNotNull { (s, id) ->
+            if (id == Services.OFF) return@mapNotNull null
+            val p = presets.byId(id)?.takeIf { it.engine == engine } ?: return@mapNotNull null
+            val cfg = engineConfig(engine, p)
+            Services.Scoped(Services.listPath(s.id), Services.Part(cfg.args, cfg.tcpPorts, cfg.udpPorts), s.keepVoice)
+        }
+        val merged = Services.merge(
+            main = Services.Part(main.args, main.tcpPorts, main.udpPorts),
+            services = scoped,
+            // a service with its own strategy (or switched off) is taken out of the main strategy
+            excluded = overrides.map { Services.listPath(it.first.id) },
+            extra = if (voice) listOf(Services.voiceArgs(engine)) else emptyList(),
+        )
+        val udp = if (voice) Args.ports(merged.udpPorts + "," + Services.VOICE_PORTS) else merged.udpPorts
+        return EngineConfig(merged.args, merged.tcpPorts.ifEmpty { "80,443" }, udp)
     }
 
     fun profileKeys(): List<String> = listOf(Profiles.WIFI, Profiles.MOBILE) + prefs.knownWifi.keys.sorted()
@@ -102,6 +126,9 @@ class Applier(
             "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(appUids())),
             "${Paths.ARGS}/tgws.args" to argsFile("tgws.args", tgwsArgs()),
         )
+        for (s in Services.all) {
+            files[Services.listPath(s.id)] = tmp("svc-${s.id}.txt", Services.listContent(s))
+        }
         for (key in profileKeys()) {
             val cfg = profileConfig(key)
             files["${Paths.PROFILES}/$key.conf"] = tmp("$key.conf", profileConf(key, cfg))

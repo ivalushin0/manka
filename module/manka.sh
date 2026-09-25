@@ -38,11 +38,13 @@ BYEDPI_PORTS=80,443
 APPS_MODE=exclude
 APP_UIDS=
 DEBUG=0
+# bypass + DNS for devices on the phone's hotspot / USB / Bluetooth tethering
+HOTSPOT=0
 # DNS while bypass is on, see setup_dns
 DNS_MODE=
 DNS_SERVER=
 DNS_DOH=
-DNS_PORT=5353
+DNS_PORT=10853
 [ -f "$DATA/settings.conf" ] && . "$DATA/settings.conf"
 # settings.conf from app versions before APPS_MODE
 [ -z "$APP_UIDS" ] && [ -n "$EXCLUDE_UIDS" ] && APP_UIDS=$EXCLUDE_UIDS
@@ -151,6 +153,24 @@ app_gate() {
 	fi
 }
 
+# nfq_out CMD CHAIN: outgoing NFQUEUE rules (uses _jq, PKT_* and caps)
+nfq_out() {
+	if [ "$HAS_CB" = 1 ]; then
+		add_ports $1 mangle $2 tcp dports "$TCP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT" $_jq
+		add_ports $1 mangle $2 udp dports "$UDP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT_UDP" $_jq
+	else
+		# No connbytes in this kernel (typical for GKI). Keep the userspace load low anyway:
+		# SYN and packets that carry data go to nfqws, pure ACKs of downloads do not.
+		add_ports $1 mangle $2 tcp dports "$TCP_PORTS" --tcp-flags SYN,ACK,FIN,RST SYN $_jq
+		if [ "$HAS_LEN" = 1 ]; then
+			add_ports $1 mangle $2 tcp dports "$TCP_PORTS" -m length --length 81:65535 $_jq
+		else
+			add_ports $1 mangle $2 tcp dports "$TCP_PORTS" $_jq
+		fi
+		add_ports $1 mangle $2 udp dports "$UDP_PORTS" $_jq
+	fi
+}
+
 # setup_nfq QNUM main|test [UID] : NFQUEUE rules for zapret / zapret2
 setup_nfq() {
 	_q=$1; _mode=$2; _tuid=$3
@@ -167,23 +187,19 @@ setup_nfq() {
 		else
 			app_gate $_c mangle $_o $_oq
 		fi
+		nfq_out $_c $_oq
+		# devices on the phone's hotspot: their traffic is forwarded, not sent by an app
+		if [ "$_mode" = main ] && [ "$HOTSPOT" = 1 ] && chain_init $_c mangle MANKA_FWD FORWARD; then
+			$_c -t mangle -A MANKA_FWD -m mark --mark 0x40000000/0x40000000 -j RETURN
+			skip_private $_c mangle MANKA_FWD dst
+			nfq_out $_c MANKA_FWD
+		fi
 		$_c -t mangle -A $_i -i lo -j RETURN
 		skip_private $_c mangle $_i src
 		if [ "$HAS_CB" = 1 ]; then
-			add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT" $_jq
-			add_ports $_c mangle $_oq udp dports "$UDP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT_UDP" $_jq
 			add_ports $_c mangle $_i tcp sports "$TCP_PORTS" -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes "1:$PKT_IN" $_jq
 			add_ports $_c mangle $_i udp sports "$UDP_PORTS" -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes "1:$PKT_IN" $_jq
 		else
-			# No connbytes in this kernel (typical for GKI). Keep the userspace load low anyway:
-			# SYN and packets that carry data go to nfqws, pure ACKs of downloads do not.
-			add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" --tcp-flags SYN,ACK,FIN,RST SYN $_jq
-			if [ "$HAS_LEN" = 1 ]; then
-				add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" -m length --length 81:65535 $_jq
-			else
-				add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" $_jq
-			fi
-			add_ports $_c mangle $_oq udp dports "$UDP_PORTS" $_jq
 			add_ports $_c mangle $_i tcp sports "$TCP_PORTS" --tcp-flags SYN,ACK SYN,ACK $_jq
 		fi
 	done
@@ -204,6 +220,12 @@ setup_byedpi_rules() {
 		app_gate $_c nat MANKA_NAT MANKA_NATQ
 		add_ports $_c nat MANKA_NATQ tcp dports "$BYEDPI_PORTS" -j REDIRECT --to-ports "$_port"
 	done
+	# hotspot clients (IPv4): ciadpi also listens on 0.0.0.0, the guard keeps it off the LAN
+	if [ "$HOTSPOT" = 1 ] && chain_init ipt nat MANKA_NATP PREROUTING; then
+		ipt -t nat -A MANKA_NATP -m addrtype --dst-type LOCAL -j RETURN
+		skip_private ipt nat MANKA_NATP dst
+		add_ports ipt nat MANKA_NATP tcp dports "$BYEDPI_PORTS" -j REDIRECT --to-ports "$BYEDPI_PORT"
+	fi
 }
 
 # QUIC block and, for ByeDPI when ip6tables has no nat table, a TCP reset for IPv6
@@ -222,15 +244,40 @@ setup_filter() {
 			$_c -t filter -A MANKA_FLTQ -m owner --uid-owner 0 -j RETURN
 			add_ports $_c filter MANKA_FLTQ tcp dports "$BYEDPI_PORTS" -j REJECT --reject-with tcp-reset
 		fi
+		# the same for hotspot clients
+		if [ "$HOTSPOT" = 1 ] && chain_init $_c filter MANKA_FFLT FORWARD; then
+			[ "$BLOCK_QUIC" = 1 ] && $_c -t filter -A MANKA_FFLT -p udp --dport 443 -j REJECT
+			if [ $_v6reset = 1 ]; then
+				skip_private $_c filter MANKA_FFLT dst
+				add_ports $_c filter MANKA_FFLT tcp dports "$BYEDPI_PORTS" -j REJECT --reject-with tcp-reset
+			fi
+		fi
 	done
+}
+
+# Hotspot mode: ciadpi / dnsproxy listen on all addresses for the redirected hotspot traffic.
+# Only connections that were redirected here (or come from the phone itself) may reach them.
+setup_guard() {
+	chain_del ipt filter MANKA_GUARD INPUT
+	[ "$HOTSPOT" = 1 ] || return 0
+	chain_init ipt filter MANKA_GUARD INPUT || return 0
+	ipt -t filter -A MANKA_GUARD -i lo -j RETURN
+	ipt -t filter -A MANKA_GUARD -m conntrack --ctstate DNAT -j RETURN || log "no conntrack match, hotspot redirects are refused"
+	ipt -t filter -A MANKA_GUARD -p tcp --dport "$BYEDPI_PORT" -j DROP
+	ipt -t filter -A MANKA_GUARD -p tcp --dport "$DNS_PORT" -j DROP
+	ipt -t filter -A MANKA_GUARD -p udp --dport "$DNS_PORT" -j DROP
+	return 0
 }
 
 remove_main_rules() {
 	for _c in ipt ip6t; do
 		chain_del $_c mangle MANKA_OUT OUTPUT
 		chain_del $_c mangle MANKA_IN PREROUTING
+		chain_del $_c mangle MANKA_FWD FORWARD
 		chain_del $_c nat MANKA_NAT OUTPUT
+		chain_del $_c nat MANKA_NATP PREROUTING
 		chain_del $_c filter MANKA_FLT OUTPUT
+		chain_del $_c filter MANKA_FFLT FORWARD
 		# gated sub-chains, no longer referenced now
 		for _sub in mangle:MANKA_OUTQ nat:MANKA_NATQ filter:MANKA_FLTQ; do
 			$_c -t "${_sub%%:*}" -F "${_sub#*:}" 2>/dev/null
@@ -249,7 +296,9 @@ remove_main_rules() {
 # resolver) is covered too; a resolver picked by name (strict mode) is left alone.
 start_dnsproxy() {
 	[ -x "$BIN/dnsproxy" ] || { log "dnsproxy missing, reinstall the module"; return 1; }
-	_conf="$DNS_PORT $DNS_DOH"
+	_lis=127.0.0.1
+	[ "$HOTSPOT" = 1 ] && _lis=0.0.0.0
+	_conf="$_lis $DNS_PORT $DNS_DOH"
 	if is_running dns && [ "$(cat "$RUN/dns.conf" 2>/dev/null)" = "$_conf" ]; then
 		return 0
 	fi
@@ -262,7 +311,7 @@ start_dnsproxy() {
 		[ -d "$_d" ] && _cd="$_cd:$_d"
 	done
 	export SSL_CERT_DIR="${_cd#:}"
-	start_daemon dns "$BIN/dnsproxy" "" -l 127.0.0.1 -p "$DNS_PORT" --cache --cache-optimistic --timeout=5s "$@"
+	start_daemon dns "$BIN/dnsproxy" "" -l "$_lis" -p "$DNS_PORT" --cache --cache-optimistic --timeout=5s "$@"
 	if [ "$(await_daemon dns | tail -n1)" = ok ]; then
 		echo "$_conf" > "$RUN/dns.conf"
 		return 0
@@ -306,10 +355,24 @@ setup_dns() {
 		ip6t -t filter -A MANKA_DNS6 -p tcp --dport 53 -j REJECT --reject-with tcp-reset
 		[ $_dot = 1 ] && ip6t -t filter -A MANKA_DNS6 -p tcp --dport 853 -j REJECT --reject-with tcp-reset
 	fi
+	# hotspot clients that ask a DNS server on the internet directly (the phone's own resolver is
+	# already covered above, it runs on the phone)
+	if [ "$HOTSPOT" = 1 ] && chain_init ipt nat MANKA_DNSP PREROUTING; then
+		ipt -t nat -A MANKA_DNSP -m addrtype --dst-type LOCAL -j RETURN
+		if [ "$_to" = local ]; then
+			ipt -t nat -A MANKA_DNSP -p udp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
+			ipt -t nat -A MANKA_DNSP -p tcp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
+		else
+			ipt -t nat -A MANKA_DNSP -d "$_to" -j RETURN
+			ipt -t nat -A MANKA_DNSP -p udp --dport 53 -j DNAT --to-destination "$_to:53"
+			ipt -t nat -A MANKA_DNSP -p tcp --dport 53 -j DNAT --to-destination "$_to:53"
+		fi
+	fi
 	return 0
 }
 
 remove_dns() {
+	chain_del ipt nat MANKA_DNSP PREROUTING
 	chain_del ipt nat MANKA_DNS OUTPUT
 	chain_del ipt filter MANKA_DNSF OUTPUT
 	chain_del ip6t filter MANKA_DNS6 OUTPUT
@@ -513,7 +576,9 @@ start_engine() {
 			setup_nfq "$QNUM" main
 			;;
 		byedpi)
-			start_daemon byedpi "$BIN/ciadpi" "$PROFILE_ARGS" -E -i 127.0.0.1 -p "$BYEDPI_PORT"
+			_lis=127.0.0.1
+			[ "$HOTSPOT" = 1 ] && _lis=0.0.0.0
+			start_daemon byedpi "$BIN/ciadpi" "$PROFILE_ARGS" -E -i "$_lis" -p "$BYEDPI_PORT"
 			if [ "$IPV6" = 1 ] && [ "$HAS_NAT6" = 1 ]; then
 				start_daemon byedpi6 "$BIN/ciadpi" "$PROFILE_ARGS" -E -i ::1 -p "$((BYEDPI_PORT + 1))"
 			fi
@@ -574,9 +639,11 @@ cmd_start() {
 		setup_dns
 		select_profile "$(current_key)"
 		start_engine
+		setup_guard
 		is_running netwatch || start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	else
 		stop_dns
+		chain_del ipt filter MANKA_GUARD INPUT
 		stop_daemon netwatch
 	fi
 	if [ "$TGWS" = 1 ]; then
@@ -604,6 +671,7 @@ cmd_net_apply() {
 cmd_stop() {
 	stop_daemon netwatch
 	stop_dns
+	chain_del ipt filter MANKA_GUARD INPUT
 	stop_engine
 	remove_test_rules
 	stop_daemon test
@@ -645,6 +713,17 @@ cmd_status() {
 	is_running dns && _dr=1
 	echo "dns_mode=$DNS_MODE"
 	echo "dns_running=$_dr"
+	echo "hotspot=$HOTSPOT"
+	# CPU share (x100, since the process started) and memory of every daemon
+	_hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
+	_up=$(cut -d. -f1 /proc/uptime)
+	for _n in zapret zapret2 byedpi byedpi6 tgws dns netwatch; do
+		_p=$(pid_of $_n)
+		[ -n "$_p" ] && [ -r "/proc/$_p/stat" ] || continue
+		_cs=$(sed 's/^.*) //' "/proc/$_p/stat" | awk -v hz="$_hz" -v up="$_up" '{ el = up * hz - $20; if (el < 1) el = 1; printf "%d", ($12 + $13) * 10000 / el }')
+		echo "cpu_$_n=$_cs"
+		echo "mem_$_n=$(awk '/^VmRSS:/ { print $2 }' "/proc/$_p/status")"
+	done
 	_failed=
 	for _f in "$RUN"/*.failed; do
 		[ -f "$_f" ] || continue
@@ -699,6 +778,7 @@ cmd_boot() {
 		setup_dns
 		select_profile "$(current_key)"
 		start_engine
+		setup_guard
 		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	fi
 	[ "$TGWS" = 1 ] && start_tgws

@@ -47,6 +47,9 @@ import app.manka.ui.ScreenScaffold
 import app.manka.ui.SectionCard
 import app.manka.ui.SwitchRow
 import app.manka.work.HealthWorker
+import app.manka.core.StatusNotifier
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -87,6 +90,18 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                     subtitle = stringResource(R.string.ipv6_hint),
                     checked = prefs.ipv6,
                     onChange = { prefs.ipv6 = it; applyIfOn() },
+                )
+                SwitchRow(
+                    title = stringResource(R.string.discord_voice),
+                    subtitle = stringResource(R.string.discord_voice_hint),
+                    checked = prefs.discordVoice,
+                    onChange = { prefs.discordVoice = it; applyIfOn() },
+                )
+                SwitchRow(
+                    title = stringResource(R.string.hotspot),
+                    subtitle = stringResource(R.string.hotspot_hint),
+                    checked = prefs.hotspot,
+                    onChange = { prefs.hotspot = it; applyIfOn() },
                 )
                 Text(stringResource(R.string.dns_title), style = MaterialTheme.typography.bodyLarge)
                 Hint(stringResource(R.string.dns_hint))
@@ -172,6 +187,21 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                     checked = prefs.autoReselect,
                     onChange = { prefs.autoReselect = it },
                 )
+                SwitchRow(
+                    title = stringResource(R.string.auto_store_update),
+                    subtitle = stringResource(R.string.auto_store_update_hint),
+                    checked = prefs.autoStoreUpdate,
+                    onChange = { prefs.autoStoreUpdate = it },
+                )
+                SwitchRow(
+                    title = stringResource(R.string.status_notification),
+                    subtitle = stringResource(R.string.status_notification_hint),
+                    checked = prefs.statusNotification,
+                    onChange = {
+                        prefs.statusNotification = it
+                        StatusNotifier.update(context, status)
+                    },
+                )
                 Text(stringResource(R.string.request_timeout, prefs.autoTimeoutSec))
                 val timeouts = listOf(3, 5, 8, 12)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -198,6 +228,21 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (status.usable && !status.hasConnbytes) Hint(stringResource(R.string.no_connbytes_hint))
+                val load = status.values.keys.filter { it.startsWith("cpu_") }.sorted()
+                if (load.isNotEmpty()) {
+                    Text(stringResource(R.string.load_title), style = MaterialTheme.typography.bodyMedium)
+                    load.forEach { k ->
+                        val name = k.removePrefix("cpu_")
+                        val cpu = (status.values[k]?.toIntOrNull() ?: 0) / 100.0
+                        val mem = (status.values["mem_"]?.toIntOrNull() ?: 0) / 1024
+                        Text(
+                            stringResource(R.string.load_line, name, String.format(java.util.Locale.ROOT, "%.2f", cpu), mem),
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Hint(stringResource(R.string.load_hint))
+                }
                 SwitchRow(
                     title = stringResource(R.string.debug_logs),
                     subtitle = stringResource(R.string.debug_logs_hint),
@@ -228,6 +273,8 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                     }
                 }
             }
+
+            BackupCard(vm)
 
             UpdateCard(vm)
 
@@ -294,6 +341,10 @@ fun UpdateCard(vm: MainViewModel) {
             }
             info != null && u.available -> {
                 Text(stringResource(R.string.update_available, info.versionName), style = MaterialTheme.typography.titleMedium)
+                if (info.news.isNotEmpty()) {
+                    Text(stringResource(R.string.update_changes), style = MaterialTheme.typography.bodyMedium)
+                    info.news.forEach { Hint("• $it") }
+                }
                 Button(onClick = { vm.installUpdate() }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.update_install))
                 }
@@ -304,6 +355,30 @@ fun UpdateCard(vm: MainViewModel) {
         u.error?.let { Text(stringResource(R.string.update_error, it), color = MaterialTheme.colorScheme.error) }
         if (!u.checking && u.progress == null && !u.installing) {
             OutlinedButton(onClick = { vm.checkUpdate() }) { Text(stringResource(R.string.update_check)) }
+        }
+    }
+}
+
+/** Settings and own strategies to / from a JSON file. */
+@Composable
+private fun BackupCard(vm: MainViewModel) {
+    val busy by vm.busy.collectAsState()
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) vm.exportBackup(uri)
+    }
+    val load = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.importBackup(uri)
+    }
+    SectionCard(title = stringResource(R.string.backup_title)) {
+        Hint(stringResource(R.string.backup_hint))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                val date = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.ROOT).format(java.util.Date())
+                save.launch("manka-backup-$date.json")
+            }, enabled = !busy) { Text(stringResource(R.string.backup_save)) }
+            OutlinedButton(onClick = { load.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }, enabled = !busy) {
+                Text(stringResource(R.string.backup_load))
+            }
         }
     }
 }

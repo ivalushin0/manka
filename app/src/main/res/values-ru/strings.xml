@@ -254,4 +254,55 @@
     <string name="diag">Диагностика приложений</string>
     <string name="diag_started">%1$s: проверяю DNS, IPv6 и адреса приложения…</string>
     <string name="diag_all">Все</string>
+    <!-- стратегии по сервисам -->
+    <string name="service_strategies">Стратегии сервисов (своих: %1$d)</string>
+    <string name="service_strategies_hint">Сервису можно дать свою стратегию, она действует только на его домены. Всё остальное идёт по основной стратегии.</string>
+    <string name="service_use_main">Основная стратегия</string>
+    <string name="service_off">Не обрабатывать</string>
+    <string name="service_strategy_hint">Эта стратегия действует только на домены %1$s, остальное идёт по основной. «Не обрабатывать» — оставить сервис как есть (если он работает без обхода).</string>
+    <string name="services_title">Сервисы</string>
+    <string name="services_never">Ещё не проверялось.</string>
+    <string name="services_time">Проверено %1$s</string>
+    <string name="services_tap_hint">Нажмите на сервис, который не работает, чтобы подобрать для него стратегию.</string>
+    <string name="services_check">Проверить</string>
+    <string name="services_checking">Проверяю…</string>
+    <string name="auto_target">Для чего подбирать</string>
+    <string name="auto_target_main">Основная стратегия</string>
+    <string name="auto_target_all_services">Все сервисы по очереди</string>
+    <string name="auto_target_main_hint">Основная стратегия сети, для всех сайтов.</string>
+    <string name="auto_target_service_hint">Только zapret / zapret2: стратегия проверяется на адресах приложения и становится своей стратегией сервиса. «Все сервисы по очереди» подбирает для каждого по очереди и сразу применяет лучшие.</string>
+    <string name="auto_queue_title">Подбор по сервисам</string>
+    <string name="auto_queue_testing">%1$s — проверяю…</string>
+    <string name="auto_queue_waiting">%1$s — в очереди</string>
+    <string name="auto_queue_none">%1$s — ничего не подошло</string>
+    <string name="auto_queue_result">%1$s — %2$d%%, применено</string>
+    <string name="auto_queue_applied">Лучшие стратегии сохранены как стратегии сервисов.</string>
+    <!-- параметры обхода -->
+    <string name="discord_voice">Голос Discord (UDP)</string>
+    <string name="discord_voice_hint">zapret / zapret2: отдельный профиль для голосовых и видеозвонков Discord. Звонки при этом идут через движок, во время звонка это немного расходует батарею.</string>
+    <string name="hotspot">Обход для раздачи</string>
+    <string name="hotspot_hint">Устройства, подключённые к телефону (точка доступа Wi-Fi, USB, Bluetooth), тоже получают обход и шифрованный DNS.</string>
+    <string name="auto_store_update">Автообновление наборов из магазина</string>
+    <string name="auto_store_update_hint">Раз в несколько дней вместе с фоновой проверкой: установленные наборы и списки обновляются до последней версии.</string>
+    <string name="status_notification">Уведомление со статусом</string>
+    <string name="status_notification_hint">Движок и сеть в шторке, с кнопкой включения и выключения.</string>
+    <string name="load_title">Нагрузка с момента запуска (CPU · память):</string>
+    <string name="load_line">%1$s: %2$s%% · %3$d МБ</string>
+    <string name="load_hint">Средняя доля процессора с момента запуска процесса. Без connbytes в ядре через движок идёт больше пакетов; zapret обычно легче ByeDPI, а TG WS Proxy зависит в основном от того, сколько используется Telegram.</string>
+    <!-- резервная копия -->
+    <string name="backup_title">Резервная копия</string>
+    <string name="backup_hint">Настройки, профили сетей, выбранные и свои стратегии, список приложений — в одном файле.</string>
+    <string name="backup_save">Сохранить в файл</string>
+    <string name="backup_load">Загрузить из файла</string>
+    <string name="backup_saved">Резервная копия сохранена</string>
+    <string name="backup_restored">Настройки восстановлены</string>
+    <string name="backup_failed">Не удалось восстановить: %1$s</string>
+    <string name="update_changes">Что нового:</string>
+    <!-- уведомление со статусом -->
+    <string name="channel_persistent">Статус обхода</string>
+    <string name="notify_on">Обход включён</string>
+    <string name="notify_off">Обход выключен</string>
+    <string name="notify_not_running">не запущен</string>
+    <string name="notify_turn_off">Выключить</string>
+    <string name="notify_turn_on">Включить</string>
 </resources>

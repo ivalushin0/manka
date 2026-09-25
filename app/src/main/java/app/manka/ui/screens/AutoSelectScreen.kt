@@ -56,6 +56,8 @@ import app.manka.autoselect.StrategyResult
 import app.manka.autoselect.Targets
 import app.manka.core.Engine
 import app.manka.core.Profiles
+import app.manka.core.Services
+import app.manka.autoselect.AutoSelector
 import androidx.navigation.NavHostController
 import app.manka.ui.Hint
 import app.manka.ui.MainViewModel
@@ -85,6 +87,14 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
     var byeByeDpi by remember { mutableStateOf(prefs.autoByeByeDpi) }
     var requests by remember { mutableStateOf(prefs.autoRequests) }
     var loadingSuite by remember { mutableStateOf(false) }
+    // null = main strategy, a service id, or ALL_SERVICES
+    var target by remember { mutableStateOf<String?>(null) }
+    val queue by vm.autoSelector.queue.collectAsState()
+    val perService = target != null
+    fun pickTarget(t: String?) {
+        target = t
+        if (t != null && (engine == null || engine == Engine.BYEDPI)) engine = Engine.ZAPRET2
+    }
 
     fun start() {
         prefs.autoGroups = groups
@@ -94,6 +104,28 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
         prefs.autoByeByeDpi = byeByeDpi
         prefs.autoRequests = requests
         scope.launch {
+            if (target != null) {
+                val base = AutoRequest(
+                    engines = listOf(engine ?: Engine.ZAPRET2),
+                    profile = vm.status.value.ownProfile,
+                    profileLabel = vm.status.value.ssid,
+                    targets = emptyList(),
+                    full = full,
+                    includeStore = includeStore,
+                    requests = requests,
+                    timeoutSec = prefs.autoTimeoutSec,
+                    stopAfterPerfect = if (full) 0 else 3,
+                    byeByeDpi = false,
+                )
+                if (target == ALL_SERVICES) {
+                    vm.autoSelector.startServices(base, Services.all)
+                } else {
+                    val s = Services.byId(target) ?: return@launch
+                    val urls = Targets.groups.filter { it.id in s.targetGroups }.flatMap { it.urls }
+                    vm.autoSelector.start(base.copy(service = s.id, targets = urls))
+                }
+                return@launch
+            }
             val urls = Targets.groups.filter { it.id in groups }.flatMap { it.urls }.toMutableList()
             if ("dpi" in groups) {
                 loadingSuite = true
@@ -134,10 +166,29 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
         },
     ) { pad ->
         LazyColumn(Modifier.fillMaxSize(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (queue.services.isNotEmpty()) {
+                item { QueueCard(queue, running = queue.active, onNew = { vm.autoSelector.resetQueue(); vm.autoSelector.reset() }) }
+            }
             if (!state.running && state.phase != Phase.DONE && state.phase != Phase.CANCELLED) {
                 item {
+                    SectionCard(title = stringResource(R.string.auto_target)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(selected = target == null, onClick = { pickTarget(null) }, label = { Text(stringResource(R.string.auto_target_main)) })
+                            Services.all.forEach { s ->
+                                FilterChip(selected = target == s.id, onClick = { pickTarget(s.id) }, label = { Text(s.title) })
+                            }
+                            FilterChip(
+                                selected = target == ALL_SERVICES,
+                                onClick = { pickTarget(ALL_SERVICES) },
+                                label = { Text(stringResource(R.string.auto_target_all_services)) },
+                            )
+                        }
+                        Hint(stringResource(if (target == null) R.string.auto_target_main_hint else R.string.auto_target_service_hint))
+                    }
+                }
+                item {
                     SectionCard(title = stringResource(R.string.engine)) {
-                        val options = Engine.entries + listOf<Engine?>(null)
+                        val options = if (perService) listOf<Engine?>(Engine.ZAPRET2, Engine.ZAPRET) else Engine.entries + listOf<Engine?>(null)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                             options.forEachIndexed { i, e ->
                                 SegmentedButton(
@@ -152,7 +203,7 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
                         Text(stringResource(R.string.auto_for_net, profileTitle(vm, profile)), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                item {
+                if (!perService) item {
                     SectionCard(title = stringResource(R.string.auto_sites)) {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Targets.groups.forEach { g ->
@@ -391,6 +442,29 @@ private fun RecommendationCard(vm: MainViewModel, state: AutoState) {
         }) {
             Icon(Icons.Filled.Check, null)
             Text(stringResource(R.string.auto_recommend_apply, winner.engine.title), Modifier.padding(start = 6.dp))
+        }
+    }
+}
+
+private const val ALL_SERVICES = "*"
+
+/** "Every service in a row": which service got which result, applied automatically at the end. */
+@Composable
+private fun QueueCard(queue: AutoSelector.QueueState, running: Boolean, onNew: () -> Unit) {
+    SectionCard(title = stringResource(R.string.auto_queue_title), containerColor = MaterialTheme.colorScheme.primaryContainer) {
+        queue.services.forEach { id ->
+            val title = Services.byId(id)?.title ?: id
+            val line = when {
+                id == queue.current -> stringResource(R.string.auto_queue_testing, title)
+                id !in queue.done -> stringResource(R.string.auto_queue_waiting, title)
+                queue.done[id] == null -> stringResource(R.string.auto_queue_none, title)
+                else -> stringResource(R.string.auto_queue_result, title, queue.done[id]!!.percent)
+            }
+            Text(line)
+        }
+        if (!running) {
+            Hint(stringResource(R.string.auto_queue_applied))
+            TextButton(onClick = onNew) { Text(stringResource(R.string.auto_new)) }
         }
     }
 }

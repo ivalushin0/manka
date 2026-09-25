@@ -19,11 +19,13 @@ import app.manka.MainActivity
 import app.manka.MankaApp
 import app.manka.R
 import app.manka.autoselect.AutoRequest
+import app.manka.autoselect.ServiceCheck
 import app.manka.autoselect.SiteChecker
 import app.manka.autoselect.Targets
 import app.manka.core.Module
 import app.manka.core.Profiles
 import app.manka.core.Prefs
+import app.manka.core.StatusNotifier
 import java.util.concurrent.TimeUnit
 
 /**
@@ -49,6 +51,16 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             app.applier.apply()
             status = Module.status()
         }
+        // store kits and lists: at most every few days, only the installed ones
+        if (prefs.autoStoreUpdate && System.currentTimeMillis() - prefs.storeCheckTime > STORE_INTERVAL) {
+            val updated = runCatching { app.store.updateInstalled() }.getOrDefault(0)
+            prefs.storeCheckTime = System.currentTimeMillis()
+            if (updated > 0 && prefs.enabled) {
+                app.applier.apply()
+                status = Module.status()
+            }
+        }
+        StatusNotifier.update(applicationContext, status)
         if (!prefs.enabled || app.autoSelector.state.value.running) return Result.success()
 
         val profile = status.ownProfile
@@ -60,6 +72,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val rate = ok * 100 / total
         prefs.lastCheckTime = System.currentTimeMillis()
         prefs.lastCheckRate = rate
+        runCatching { ServiceCheck.run(prefs, prefs.autoTimeoutSec) }
 
         val expected = prefs.baselineRate(profile).takeIf { it > 0 } ?: 100
         val degraded = rate < 50 && rate < expected - 25
@@ -94,6 +107,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     companion object {
         private const val NAME = "health"
         private const val NOTIFICATION_ID = 10
+        private const val STORE_INTERVAL = 3 * 24 * 60 * 60 * 1000L
 
         fun schedule(context: Context, prefs: Prefs) {
             val wm = WorkManager.getInstance(context)

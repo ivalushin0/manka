@@ -58,6 +58,24 @@ class Prefs(context: Context) {
     fun baselineRate(key: String): Int = sp.getInt("baseline_rate${sfx(key)}", -1)
     fun setBaselineRate(key: String, rate: Int) = sp.edit { putInt("baseline_rate${sfx(key)}", rate) }
 
+    /** Strategy of a service in a profile (see Services): preset id, Services.OFF or null = main strategy. */
+    fun servicePreset(engine: Engine, key: String, service: String): String? =
+        when (val v = sp.getString("svc_${engine.id}_$service${sfx(key)}", null)) {
+            // explicitly "main strategy" in a profile whose parent has a service strategy
+            MAIN -> null
+            null -> Profiles.parent(key)?.let { servicePreset(engine, it, service) }
+            else -> v
+        }
+
+    fun setServicePreset(engine: Engine, key: String, service: String, id: String?) = sp.edit {
+        val k = "svc_${engine.id}_$service${sfx(key)}"
+        when {
+            id != null -> putString(k, id)
+            Profiles.parent(key) != null -> putString(k, MAIN)
+            else -> remove(k)
+        }
+    }
+
     /** Wi-Fi networks that have their own profile: key -> SSID. */
     var knownWifi: Map<String, String>
         get() = (sp.getStringSet("known_wifi", emptySet()) ?: emptySet())
@@ -184,6 +202,60 @@ class Prefs(context: Context) {
         get() = sp.getInt("auto_timeout", 5)
         set(v) = sp.edit { putInt("auto_timeout", v) }
 
+    /** zapret / zapret2: extra profile for Discord voice (UDP). */
+    var discordVoice: Boolean
+        get() = sp.getBoolean("discord_voice", false)
+        set(v) = sp.edit { putBoolean("discord_voice", v) }
+    /** Bypass and DNS for devices connected to the phone's hotspot / USB / Bluetooth tethering. */
+    var hotspot: Boolean
+        get() = sp.getBoolean("hotspot", false)
+        set(v) = sp.edit { putBoolean("hotspot", v) }
+    /** Ongoing notification with the bypass state and an on/off action. */
+    var statusNotification: Boolean
+        get() = sp.getBoolean("status_notification", false)
+        set(v) = sp.edit { putBoolean("status_notification", v) }
+
+    // ---- service status (home screen)
+    /** Target group id -> share of hosts that opened, from the last check. */
+    var serviceStatus: Map<String, Int>
+        get() = str("service_status", "").split(';').mapNotNull { e ->
+            val k = e.substringBefore('=', "")
+            val v = e.substringAfter('=', "").toIntOrNull()
+            if (k.isEmpty() || v == null) null else k to v
+        }.toMap()
+        set(v) = sp.edit { putString("service_status", v.entries.joinToString(";") { "${it.key}=${it.value}" }) }
+    var serviceStatusTime: Long
+        get() = sp.getLong("service_status_time", 0)
+        set(v) = sp.edit { putLong("service_status_time", v) }
+
+    // ---- store auto update
+    var autoStoreUpdate: Boolean
+        get() = sp.getBoolean("auto_store_update", true)
+        set(v) = sp.edit { putBoolean("auto_store_update", v) }
+    var storeCheckTime: Long
+        get() = sp.getLong("store_check_time", 0)
+        set(v) = sp.edit { putLong("store_check_time", v) }
+
+    // ---- backup
+    /** Every setting with its type, for the backup file. */
+    fun exportAll(): Map<String, Any?> = sp.all.filterKeys { backedUp(it) }
+
+    fun importAll(values: Map<String, Any?>) = sp.edit {
+        sp.all.keys.filter { backedUp(it) }.forEach { remove(it) }
+        values.forEach { (k, v) ->
+            if (!backedUp(k)) return@forEach
+            @Suppress("UNCHECKED_CAST")
+            when (v) {
+                is Boolean -> putBoolean(k, v)
+                is Int -> putInt(k, v)
+                is Long -> putLong(k, v)
+                is Float -> putFloat(k, v)
+                is String -> putString(k, v)
+                is Set<*> -> putStringSet(k, (v as Set<Any?>).map { it.toString() }.toSet())
+            }
+        }
+    }
+
     // ---- self update
     var lastUpdateCheck: Long
         get() = sp.getLong("update_check", 0)
@@ -201,6 +273,16 @@ class Prefs(context: Context) {
     var bundledKitsImported: String
         get() = str("bundled_kits", "")
         set(v) = sp.edit { putString("bundled_kits", v) }
+
+    /** Device state that must not travel with a backup: install markers, update bookkeeping. */
+    private companion object {
+        const val MAIN = "main"
+    }
+
+    private fun backedUp(key: String) = !key.startsWith("kit_") && key !in setOf(
+        "bundled_kits", "update_check", "module_update_pending", "store_check_time", "service_status", "service_status_time",
+        "last_check_time", "last_check_rate", "dns_v2",
+    )
 
     private fun newSecret(): String {
         val bytes = ByteArray(16).also { SecureRandom().nextBytes(it) }

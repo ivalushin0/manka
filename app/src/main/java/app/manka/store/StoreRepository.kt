@@ -222,6 +222,23 @@ class StoreRepository(
         prefs.bundledKitsImported = snapshot
     }
 
+    /**
+     * Background update: refreshes the index, then re-installs every installed kit whose release
+     * changed and re-downloads installed lists. Returns how many items were updated.
+     */
+    suspend fun updateInstalled(): Int {
+        runCatching { refreshIndex() }
+        var updated = 0
+        for (item in items()) {
+            if (item.support != StoreItem.Support.INSTALL) continue
+            val installed = installedVersion(item) ?: continue
+            val latest = runCatching { latestRelease(item) }.getOrNull() ?: continue
+            if (item.versionControl != "subscription" && latest.tag == installed) continue
+            if (runCatching { install(item) }.isSuccess) updated++
+        }
+        return updated
+    }
+
     /** Re-copies kits after the module (and /data/adb/manka) was reinstalled. */
     suspend fun resyncKits() {
         KitLoader.kitsDir(context).listFiles()?.filter { it.isDirectory }?.forEach { Module.syncKit(it.name, it) }

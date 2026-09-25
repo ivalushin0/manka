@@ -19,7 +19,9 @@ object Updater {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Serializable
-    data class Info(val versionCode: Int, val versionName: String, val apk: String, val module: String? = null) {
+    data class Info(val versionCode: Int, val versionName: String, val apk: String, val module: String? = null, val changes: List<String> = emptyList()) {
+        /** Commit subjects of the versions newer than the installed one (one commit = one version). */
+        val news get() = changes.take((versionCode - BuildConfig.VERSION_CODE).coerceIn(0, changes.size))
         val newer get() = versionCode > BuildConfig.VERSION_CODE
         val apkUrl get() = "$BASE/$apk"
     }
