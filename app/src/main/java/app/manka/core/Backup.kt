@@ -16,7 +16,7 @@ import java.io.IOException
 
 /** Settings + own strategies in one JSON file, to move them to another phone or keep them safe. */
 object Backup {
-    private val json = Json { prettyPrint = true }
+    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
     fun export(context: Context, prefs: Prefs): String {
         val values = prefs.exportAll().mapNotNull { (k, v) ->
@@ -64,7 +64,7 @@ object Backup {
             value?.let { k to it }
         }?.toMap() ?: throw IOException("no settings in the file")
         prefs.importAll(values)
-        root["presets"]?.let { p ->
+        root["presets"]?.takeIf { p -> runCatching { json.decodeFromJsonElement(kotlinx.serialization.builtins.ListSerializer(Preset.serializer()), p) }.isSuccess }?.let { p ->
             File(context.filesDir, PRESETS).writeText(json.encodeToString(JsonElement.serializer(), p))
             presets.reloadUser()
         }

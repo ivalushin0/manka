@@ -19,6 +19,9 @@ object Http {
             c.readTimeout = 30_000
             c.instanceFollowRedirects = false
             c.setRequestProperty("User-Agent", UA)
+            // version.json / store index must not come from a stale cache
+            c.useCaches = false
+            c.setRequestProperty("Cache-Control", "no-cache")
             if (current.startsWith("https://api.github.com")) c.setRequestProperty("Accept", "application/vnd.github+json")
             val code = c.responseCode
             if (code in 300..399) {

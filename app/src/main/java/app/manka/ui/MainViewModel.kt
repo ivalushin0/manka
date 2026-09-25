@@ -147,11 +147,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _status.value = Module.status()
                 _busy.value = false
                 StatusNotifier.update(app, _status.value)
+                if (applyPending) {
+                    applyPending = false
+                    applyNow()
+                }
             }
         }
     }
 
-    fun apply() = op {
+    /** Set when a setting changed while another operation was running: applied right after it. */
+    @Volatile private var applyPending = false
+
+    fun apply() {
+        if (_busy.value) {
+            applyPending = true
+            return
+        }
+        applyNow()
+    }
+
+    private fun applyNow() = op {
         val s = app.applier.apply()
         if (prefs.enabled && s.usable && !s.engineRunning) {
             // give the supervisor a moment, crashes show up in "failed"

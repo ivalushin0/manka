@@ -2,6 +2,11 @@ package app.manka.core
 
 import android.content.Context
 import app.manka.store.KitLoader
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.decodeFromString
@@ -18,15 +23,28 @@ class PresetRepository(private val context: Context, private val prefs: Prefs) {
     private val _presets = MutableStateFlow<List<Preset>>(emptyList())
     val presets: StateFlow<List<Preset>> = _presets
 
-    private var userPresets: List<Preset> = emptyList()
-    private var storePresets: List<Preset> = emptyList()
-    private var catalog: List<Preset> = emptyList()
+    @Volatile private var userPresets: List<Preset> = emptyList()
+    @Volatile private var storePresets: List<Preset> = emptyList()
+    @Volatile private var catalog: List<Preset> = emptyList()
+    private val loaded = CompletableDeferred<Unit>()
 
     init {
-        catalog = buildCatalog()
         userPresets = runCatching { json.decodeFromString<List<Preset>>(file.readText()) }.getOrDefault(emptyList())
-        reloadStore()
+        publish()
+        // store kits (JSON + zapret2 conversion) and the catalogue are too slow for app start
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                catalog = buildCatalog()
+                storePresets = KitLoader.loadInstalled(context)
+                publish()
+            } finally {
+                loaded.complete(Unit)
+            }
+        }
     }
+
+    /** Everything that picks the preset to run must wait for the store presets first. */
+    suspend fun awaitLoaded() = loaded.await()
 
     /** Own strategies were replaced on disk (backup restore). */
     fun reloadUser() {
@@ -64,6 +82,7 @@ class PresetRepository(private val context: Context, private val prefs: Prefs) {
         return byeByeDpi + ours
     }
 
+    @Synchronized
     private fun publish() {
         _presets.value = Strategies.builtinPresets() + storePresets + userPresets + catalog
     }

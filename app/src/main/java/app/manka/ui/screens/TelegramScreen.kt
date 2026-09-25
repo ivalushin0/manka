@@ -83,7 +83,7 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                     sizes.forEachIndexed { i, s ->
                         SegmentedButton(
                             selected = prefs.tgwsPoolSize == s,
-                            onClick = { prefs.tgwsPoolSize = s },
+                            onClick = { prefs.tgwsPoolSize = s; if (prefs.tgws) save() },
                             shape = SegmentedButtonDefaults.itemShape(i, sizes.size),
                         ) { Text(if (s == 0) stringResource(R.string.tgws_pool_eco) else s.toString()) }
                     }
@@ -95,7 +95,7 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                     title = stringResource(R.string.tgws_cf),
                     subtitle = stringResource(R.string.tgws_cf_hint),
                     checked = prefs.tgwsCloudflare,
-                    onChange = { prefs.tgwsCloudflare = it },
+                    onChange = { prefs.tgwsCloudflare = it; if (prefs.tgws) save() },
                 )
                 OutlinedTextField(
                     value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) },

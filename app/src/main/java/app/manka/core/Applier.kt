@@ -122,6 +122,7 @@ class Applier(
     fun profileKeys(): List<String> = listOf(Profiles.WIFI, Profiles.MOBILE) + prefs.knownWifi.keys.sorted()
 
     suspend fun writeConfig() {
+        presets.awaitLoaded()
         val files = linkedMapOf(
             "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(appUids())),
             "${Paths.ARGS}/tgws.args" to argsFile("tgws.args", tgwsArgs()),
@@ -134,18 +135,14 @@ class Applier(
             files["${Paths.PROFILES}/$key.conf"] = tmp("$key.conf", profileConf(key, cfg))
             files["${Paths.PROFILES}/$key.args"] = argsFile("$key.args", cfg.args)
         }
-        // profiles of forgotten networks must disappear
-        Root.exec("rm -rf ${Paths.PROFILES}")
-        Module.copyIn(files)
-        ensureExcludeList()
+        // profiles of forgotten networks must disappear; one root call for everything
+        val r = Module.copyIn(files, before = "rm -rf ${Paths.PROFILES}", after = excludeListScript())
+        if (!r.ok) throw java.io.IOException(r.out.lines().lastOrNull { it.isNotBlank() } ?: "cannot write the configuration")
     }
 
     /** nfqws refuses to start when a referenced hostlist is missing. */
-    suspend fun ensureExcludeList() {
-        Root.exec(
-            "[ -f ${Paths.EXCLUDE_LIST} ] || { mkdir -p ${Paths.LISTS}; cat ${Root.q(tmp("exclude.txt", DEFAULT_EXCLUDE).absolutePath)} > ${Paths.EXCLUDE_LIST}; }",
-        )
-    }
+    private fun excludeListScript() =
+        "[ -f ${Paths.EXCLUDE_LIST} ] || { mkdir -p ${Paths.LISTS}; cat ${Root.q(tmp("exclude.txt", DEFAULT_EXCLUDE).absolutePath)} > ${Paths.EXCLUDE_LIST}; }"
 
     suspend fun writeTestArgs(args: List<String>): String {
         val dest = "${Paths.ARGS}/test.args"

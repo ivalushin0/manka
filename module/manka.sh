@@ -367,11 +367,17 @@ setup_dns() {
 			ipt -t nat -A MANKA_DNSP -p udp --dport 53 -j DNAT --to-destination "$_to:53"
 			ipt -t nat -A MANKA_DNSP -p tcp --dport 53 -j DNAT --to-destination "$_to:53"
 		fi
+		# hotspot clients asking over IPv6 are refused, they retry over IPv4 (redirected above)
+		if chain_init ip6t filter MANKA_DNSF6 FORWARD; then
+			ip6t -t filter -A MANKA_DNSF6 -p udp --dport 53 -j REJECT
+			ip6t -t filter -A MANKA_DNSF6 -p tcp --dport 53 -j REJECT --reject-with tcp-reset
+		fi
 	fi
 	return 0
 }
 
 remove_dns() {
+	chain_del ip6t filter MANKA_DNSF6 FORWARD
 	chain_del ipt nat MANKA_DNSP PREROUTING
 	chain_del ipt nat MANKA_DNS OUTPUT
 	chain_del ipt filter MANKA_DNSF OUTPUT
@@ -607,11 +613,21 @@ start_tgws() {
 }
 
 
+# Cheap fingerprint of the default route. Route events are frequent (IPv6 router adverts,
+# route refreshes); the expensive SSID lookup only runs when this changes.
+net_sig() {
+	ip route get 1.1.1.1 2>/dev/null | head -n1 | sed 's/ uid [0-9]*//'
+}
+
 # Follows route changes (no polling) and switches the profile when the network changes.
 netwatch() {
 	_t0=$(date +%s)
+	_last=$(net_sig)
 	if ! ip monitor route 2>/dev/null | while read -r _line; do
 		[ -f "$RUN/testing" ] && continue
+		_sig=$(net_sig)
+		[ "$_sig" = "$_last" ] && continue
+		_last=$_sig
 		[ "$(current_key)" = "$(cat "$RUN/key" 2>/dev/null)" ] && continue
 		# let the routing settle, then re-check
 		sleep 2
@@ -681,8 +697,18 @@ cmd_stop() {
 	cmd_status
 }
 
+# Daemon logs only shrink when a daemon restarts; a long-running chatty one (debug logs on)
+# is cut here, the daemon keeps appending to the emptied file.
+trim_logs() {
+	for _f in "$LOGDIR"/*.log; do
+		[ -f "$_f" ] || continue
+		[ "$(wc -c < "$_f")" -gt 2097152 ] && : > "$_f"
+	done
+}
+
 cmd_status() {
 	load_caps
+	trim_logs
 	_running_engine=$(cat "$RUN/engine" 2>/dev/null)
 	[ -n "$_running_engine" ] && ENGINE=$_running_engine
 	echo "module_dir=$MODDIR"

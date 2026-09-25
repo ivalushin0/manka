@@ -36,7 +36,13 @@ object Module {
         .mapNotNull { l -> l.indexOf('=').takeIf { it > 0 }?.let { l.substring(0, it).trim() to l.substring(it + 1).trim() } }
         .toMap()
 
-    suspend fun status(): ModuleStatus {
+    suspend fun status(): ModuleStatus = statusAfter("status", 30)
+
+    /**
+     * Runs a manka.sh command whose output ends with the status (status, start, stop) and parses it,
+     * so starting the module and reading its state is a single root call.
+     */
+    private suspend fun statusAfter(command: String, timeoutSec: Long): ModuleStatus {
         val r = Root.exec(
             """
             M=${Paths.MODULE}
@@ -45,8 +51,8 @@ object Module {
             [ -f ${'$'}M/disable ] && echo disabled=1 || echo disabled=0
             [ -f ${'$'}M/remove ] && echo remove=1 || echo remove=0
             echo "version_code=$(sed -n 's/^versionCode=//p' ${'$'}M/module.prop 2>/dev/null)"
-            [ -f ${'$'}M/manka.sh ] && sh ${'$'}M/manka.sh status
-            """.trimIndent(), 30,
+            [ -f ${'$'}M/manka.sh ] && sh ${'$'}M/manka.sh $command
+            """.trimIndent(), timeoutSec,
         )
         val v = parse(r.out)
         if (v["root"] != "0") return ModuleStatus(rootOk = false)
@@ -103,14 +109,19 @@ object Module {
         )
     }
 
-    /** Copies local files into root-owned locations. Map: destination -> local file. */
-    suspend fun copyIn(files: Map<String, File>): Root.Result {
+    /**
+     * Copies local files into root-owned locations. Map: destination -> local file.
+     * [before] / [after] are extra shell lines run in the same root call.
+     */
+    suspend fun copyIn(files: Map<String, File>, before: String = "", after: String = ""): Root.Result {
         val script = buildString {
+            if (before.isNotEmpty()) appendLine(before)
             files.forEach { (dest, src) ->
                 src.setReadable(true, false)
                 val dir = dest.substringBeforeLast('/')
                 appendLine("mkdir -p ${Root.q(dir)} && cat ${Root.q(src.absolutePath)} > ${Root.q(dest)} && chmod 0644 ${Root.q(dest)}")
             }
+            if (after.isNotEmpty()) appendLine(after)
         }
         return Root.exec(script)
     }
@@ -118,15 +129,9 @@ object Module {
     suspend fun run(command: String, timeoutSec: Long = 60): Root.Result =
         Root.exec("sh ${Paths.SCRIPT} $command", timeoutSec)
 
-    suspend fun start(): ModuleStatus {
-        run("start", 90)
-        return status()
-    }
+    suspend fun start(): ModuleStatus = statusAfter("start", 90)
 
-    suspend fun stop(): ModuleStatus {
-        run("stop", 60)
-        return status()
-    }
+    suspend fun stop(): ModuleStatus = statusAfter("stop", 60)
 
     suspend fun restartTgws(): Root.Result = run("tgws-restart", 30)
 

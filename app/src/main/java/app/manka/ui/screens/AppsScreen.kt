@@ -69,7 +69,7 @@ fun AppsScreen(vm: MainViewModel, onBack: () -> Unit) {
         apps = withContext(Dispatchers.IO) {
             val pm = context.packageManager
             @Suppress("DEPRECATION")
-            pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            pm.getInstalledApplications(0)
                 .filter { it.packageName != context.packageName }
                 .filter { pm.checkPermission(android.Manifest.permission.INTERNET, it.packageName) == PackageManager.PERMISSION_GRANTED }
                 .map {
