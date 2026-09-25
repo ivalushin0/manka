@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.manka.R
 import app.manka.core.Module
+import app.manka.core.NetDiag
 import app.manka.ui.MainViewModel
 import app.manka.ui.Mono
 import app.manka.ui.ScreenScaffold
@@ -38,6 +40,7 @@ fun LogsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
     var reload by remember { mutableIntStateOf(0) }
+    var diagRunning by remember { mutableStateOf(false) }
     LaunchedEffect(reload) {
         val status = Module.status().values.entries.joinToString("\n") { "${it.key}=${it.value}" }
         text = "===== status\n$status\n\n" + Module.logs().ifBlank { context.getString(R.string.logs_empty) }
@@ -46,6 +49,21 @@ fun LogsScreen(vm: MainViewModel, onBack: () -> Unit) {
         title = stringResource(R.string.logs),
         onBack = onBack,
         actions = {
+            IconButton(enabled = !diagRunning, onClick = {
+                diagRunning = true
+                vm.say(R.string.diag_started)
+                scope.launch {
+                    val sb = StringBuilder()
+                    try {
+                        NetDiag.run(NetDiag.INSTAGRAM, vm.prefs.autoTimeoutSec) { line ->
+                            sb.appendLine(line)
+                            text = sb.toString()
+                        }
+                    } finally {
+                        diagRunning = false
+                    }
+                }
+            }) { Icon(Icons.Filled.NetworkCheck, stringResource(R.string.diag)) }
             IconButton(onClick = { reload++ }) { Icon(Icons.Filled.Refresh, stringResource(R.string.refresh)) }
             IconButton(onClick = {
                 context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("manka log", text))

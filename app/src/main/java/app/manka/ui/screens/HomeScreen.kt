@@ -117,6 +117,9 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                 }
             }
 
+            val update by vm.update.collectAsState()
+            if (update.available || update.progress != null || update.installing) UpdateCard(vm)
+
             // ---- power
             val own = status.ownProfile
             val engine = prefs.engine(own)

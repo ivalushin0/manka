@@ -247,11 +247,18 @@ setup_dns() {
 	ipt -t nat -A MANKA_DNS -d "$DNS_SERVER" -j RETURN
 	ipt -t nat -A MANKA_DNS -p udp --dport 53 -j DNAT --to-destination "$DNS_SERVER:53"
 	ipt -t nat -A MANKA_DNS -p tcp --dport 53 -j DNAT --to-destination "$DNS_SERVER:53"
+	# "Automatic" private DNS talks DoT to the network's resolver and would skip the rules above.
+	# A resolver picked by name (strict mode) is left alone: redirecting it breaks its certificate.
+	_dot=0
+	[ "$(settings get global private_dns_mode 2>/dev/null)" = hostname ] || _dot=1
+	[ $_dot = 1 ] && ipt -t nat -A MANKA_DNS -p tcp --dport 853 -j DNAT --to-destination "$DNS_SERVER:853"
 	if chain_init ip6t filter MANKA_DNS6 OUTPUT; then
 		ip6t -t filter -A MANKA_DNS6 -o lo -j RETURN
 		ip6t -t filter -A MANKA_DNS6 -p udp --dport 53 -j REJECT
 		ip6t -t filter -A MANKA_DNS6 -p tcp --dport 53 -j REJECT --reject-with tcp-reset
+		[ $_dot = 1 ] && ip6t -t filter -A MANKA_DNS6 -p tcp --dport 853 -j REJECT --reject-with tcp-reset
 	fi
+	return 0
 }
 
 remove_dns() {

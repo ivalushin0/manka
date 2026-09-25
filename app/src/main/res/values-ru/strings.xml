@@ -111,6 +111,7 @@
     <string name="group_youtube">YouTube</string>
     <string name="group_discord">Discord</string>
     <string name="group_general">Заблокированные сайты</string>
+    <string name="group_instagram">Instagram (адреса приложения)</string>
     <string name="group_cdn">Cloudflare / CDN</string>
     <string name="group_telegram">Telegram web</string>
     <string name="group_dpi_suite">Тест DPI 16-20 КБ</string>
@@ -237,4 +238,17 @@
     <string name="history_empty">Сохранённых подборов пока нет. Сюда попадает каждый подбор, в котором нашлась рабочая стратегия.</string>
     <string name="history_summary">Лучший %1$d%% · рабочих %2$d из %3$d проверенных</string>
     <string name="history_apply_hint">«Применить» ставит стратегию в профиль: %1$s.</string>
+    <string name="update_title">Обновление приложения</string>
+    <string name="update_check">Проверить обновления</string>
+    <string name="update_checking">Проверяю…</string>
+    <string name="update_latest">Установлена последняя версия</string>
+    <string name="update_available">Доступна версия %1$s</string>
+    <string name="update_install">Скачать и установить</string>
+    <string name="update_hint">Приложение само перезапустится, модуль обновится сразу после этого.</string>
+    <string name="update_downloading">Загрузка… %1$d%%</string>
+    <string name="update_installing">Устанавливаю… приложение перезапустится</string>
+    <string name="update_error">Не удалось обновить: %1$s</string>
+    <string name="update_no_restart">Обновление установлено, но приложение не перезапустилось — откройте его заново</string>
+    <string name="diag">Диагностика Instagram</string>
+    <string name="diag_started">Проверяю DNS, IPv6 и адреса Instagram…</string>
 </resources>

@@ -170,6 +170,7 @@ jobs:
           mkdir -p out
           cp app/build/outputs/apk/release/*.apk "out/Manka-$NAME.apk"
           cp build/manka-module.zip "out/Manka-module-$NAME.zip"
+          printf '{"versionCode":%s,"versionName":"%s","apk":"Manka-%s.apk","module":"Manka-module-%s.zip"}\n' "$COUNT" "$NAME" "$NAME" "$NAME" > out/version.json
           ls -la out
 
       - uses: actions/upload-artifact@v4

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -228,8 +229,9 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                 }
             }
 
+            UpdateCard(vm)
+
             SectionCard(title = stringResource(R.string.about)) {
-                Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME))
                 Hint(stringResource(R.string.about_credits))
             }
         }
@@ -262,5 +264,46 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
             },
             dismissButton = { TextButton(onClick = { excludeText = null }) { Text(stringResource(R.string.cancel)) } },
         )
+    }
+}
+
+@Composable
+fun UpdateCard(vm: MainViewModel) {
+    val u by vm.update.collectAsState()
+    SectionCard(title = stringResource(R.string.update_title)) {
+        Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME))
+        val info = u.info
+        when {
+            u.checking -> {
+                Text(stringResource(R.string.update_checking))
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            u.progress != null -> {
+                val p = u.progress!!
+                if (p >= 0f) {
+                    Text(stringResource(R.string.update_downloading, (p * 100).toInt()))
+                    LinearProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth())
+                } else {
+                    Text(stringResource(R.string.update_downloading, 0))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+            }
+            u.installing -> {
+                Text(stringResource(R.string.update_installing))
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            info != null && u.available -> {
+                Text(stringResource(R.string.update_available, info.versionName), style = MaterialTheme.typography.titleMedium)
+                Button(onClick = { vm.installUpdate() }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.update_install))
+                }
+                Hint(stringResource(R.string.update_hint))
+            }
+            info != null -> Text(stringResource(R.string.update_latest))
+        }
+        u.error?.let { Text(stringResource(R.string.update_error, it), color = MaterialTheme.colorScheme.error) }
+        if (!u.checking && u.progress == null && !u.installing) {
+            OutlinedButton(onClick = { vm.checkUpdate() }) { Text(stringResource(R.string.update_check)) }
+        }
     }
 }

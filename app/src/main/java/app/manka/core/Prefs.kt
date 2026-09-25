@@ -172,6 +172,15 @@ class Prefs(context: Context) {
         get() = sp.getInt("auto_timeout", 5)
         set(v) = sp.edit { putInt("auto_timeout", v) }
 
+    // ---- self update
+    var lastUpdateCheck: Long
+        get() = sp.getLong("update_check", 0)
+        set(v) = sp.edit { putLong("update_check", v) }
+    /** Set before installing a new APK: the new version then updates the module by itself. */
+    var moduleUpdatePending: Boolean
+        get() = sp.getBoolean("module_update_pending", false)
+        set(v) = sp.edit { putBoolean("module_update_pending", v) }
+
     // ---- store
     fun kitVersion(storeId: String): String? = sp.getString("kit_$storeId", null)
     fun setKitVersion(storeId: String, version: String?) = sp.edit {

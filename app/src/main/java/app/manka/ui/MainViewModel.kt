@@ -10,6 +10,7 @@ import app.manka.core.Engine
 import app.manka.core.Module
 import app.manka.core.ModuleStatus
 import app.manka.core.Profiles
+import app.manka.core.Updater
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,8 +36,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var kitsImported = false
 
+    /** Self-update state for the settings screen and the home banner. */
+    data class UpdateUi(
+        val checking: Boolean = false,
+        val checked: Boolean = false,
+        val info: Updater.Info? = null,
+        /** Download progress 0..1, -1 = unknown size, null = not downloading. */
+        val progress: Float? = null,
+        val installing: Boolean = false,
+        val error: String? = null,
+    ) {
+        val available get() = info?.newer == true
+    }
+
+    private val _update = MutableStateFlow(UpdateUi())
+    val update: StateFlow<UpdateUi> = _update
+
     init {
         refresh()
+        if (System.currentTimeMillis() - prefs.lastUpdateCheck > UPDATE_CHECK_INTERVAL) checkUpdate()
+    }
+
+    fun checkUpdate() {
+        if (_update.value.checking || _update.value.progress != null || _update.value.installing) return
+        _update.value = _update.value.copy(checking = true, error = null)
+        viewModelScope.launch {
+            _update.value = try {
+                val info = Updater.check()
+                prefs.lastUpdateCheck = System.currentTimeMillis()
+                UpdateUi(checked = true, info = info)
+            } catch (e: Exception) {
+                UpdateUi(checked = true, error = e.message ?: e.javaClass.simpleName)
+            }
+        }
+    }
+
+    fun installUpdate() {
+        val info = _update.value.info ?: return
+        if (_update.value.progress != null || _update.value.installing) return
+        _update.value = _update.value.copy(progress = 0f, error = null)
+        app.appScope.launch {
+            try {
+                val apk = Updater.download(app, info) { p -> _update.value = _update.value.copy(progress = p) }
+                _update.value = _update.value.copy(progress = null, installing = true)
+                prefs.moduleUpdatePending = true
+                val error = Updater.install(app, apk)
+                prefs.moduleUpdatePending = false
+                _update.value = _update.value.copy(installing = false, error = error)
+                if (error == null) say(R.string.update_no_restart)
+            } catch (e: Exception) {
+                prefs.moduleUpdatePending = false
+                _update.value = _update.value.copy(progress = null, installing = false, error = e.message ?: e.javaClass.simpleName)
+            }
+        }
     }
 
     fun say(@StringRes res: Int, vararg args: Any) {
@@ -51,6 +103,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _status.value = Module.status()
             _loaded.value = true
+            val s = _status.value
+            if (prefs.moduleUpdatePending && s.rootOk) {
+                // first start after a self-update: bring the module up to the bundled version
+                prefs.moduleUpdatePending = false
+                if (s.installed && Module.bundledVersionCode(app) > s.versionCode) {
+                    kitsImported = true
+                    installModule()
+                    return@launch
+                }
+            }
             if (_status.value.usable && !kitsImported) {
                 kitsImported = true
                 runCatching { store.importBundledKits() }
@@ -131,5 +193,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         kitsImported = true
         app.applier.apply()
         say(R.string.module_installed)
+    }
+
+    companion object {
+        private const val UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000L
     }
 }

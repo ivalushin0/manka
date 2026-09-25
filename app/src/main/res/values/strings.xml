@@ -113,6 +113,7 @@
     <string name="group_youtube">YouTube</string>
     <string name="group_discord">Discord</string>
     <string name="group_general">Blocked sites</string>
+    <string name="group_instagram">Instagram (app hosts)</string>
     <string name="group_cdn">Cloudflare / CDN</string>
     <string name="group_telegram">Telegram web</string>
     <string name="group_dpi_suite">DPI 16-20 KB test</string>
@@ -239,4 +240,17 @@
     <string name="history_empty">No saved selections yet. Every selection that finds a working strategy appears here.</string>
     <string name="history_summary">Best %1$d%% · %2$d working of %3$d tested</string>
     <string name="history_apply_hint">Apply puts the strategy into the profile: %1$s.</string>
+    <string name="update_title">App update</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_latest">You have the latest version</string>
+    <string name="update_available">Version %1$s is available</string>
+    <string name="update_install">Download and install</string>
+    <string name="update_hint">The app restarts by itself, the module is updated right after.</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_installing">Installing… the app will restart</string>
+    <string name="update_error">Update failed: %1$s</string>
+    <string name="update_no_restart">Update installed, but the app did not restart — open it again</string>
+    <string name="diag">Instagram diagnostics</string>
+    <string name="diag_started">Checking DNS, IPv6 and Instagram hosts…</string>
 </resources>

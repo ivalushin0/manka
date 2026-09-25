@@ -45,6 +45,16 @@ object Targets {
             ),
         ),
         TargetGroup(
+            "instagram", R.string.group_instagram,
+            listOf(
+                "https://www.instagram.com/",
+                "https://i.instagram.com/",
+                "https://static.cdninstagram.com/",
+                "https://scontent.cdninstagram.com/",
+                "https://graph.facebook.com/",
+            ),
+        ),
+        TargetGroup(
             "cdn", R.string.group_cdn,
             listOf(
                 "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js",
