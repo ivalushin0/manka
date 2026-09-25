@@ -114,6 +114,8 @@
     <string name="group_discord">Discord</string>
     <string name="group_general">Blocked sites</string>
     <string name="group_instagram">Instagram (app hosts)</string>
+    <string name="group_facebook">Facebook (app hosts)</string>
+    <string name="group_tiktok">TikTok (app hosts)</string>
     <string name="group_cdn">Cloudflare / CDN</string>
     <string name="group_telegram">Telegram web</string>
     <string name="group_dpi_suite">DPI 16-20 KB test</string>
@@ -251,6 +253,7 @@
     <string name="update_installing">Installing… the app will restart</string>
     <string name="update_error">Update failed: %1$s</string>
     <string name="update_no_restart">Update installed, but the app did not restart — open it again</string>
-    <string name="diag">Instagram diagnostics</string>
-    <string name="diag_started">Checking DNS, IPv6 and Instagram hosts…</string>
+    <string name="diag">App diagnostics</string>
+    <string name="diag_started">%1$s: checking DNS, IPv6 and the app hosts…</string>
+    <string name="diag_all">All</string>
 </resources>

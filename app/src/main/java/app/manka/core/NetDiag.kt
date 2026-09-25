@@ -21,19 +21,51 @@ import java.net.Socket
  * DNS-over-HTTPS, whether IPv6 is in play and which of the app's real hosts answer through the bypass.
  */
 object NetDiag {
-    val INSTAGRAM = listOf(
-        "www.instagram.com",
-        "i.instagram.com",
-        "graph.instagram.com",
-        "static.cdninstagram.com",
-        "scontent.cdninstagram.com",
-        "edge-mqtt.facebook.com",
-        "graph.facebook.com",
-        "static.xx.fbcdn.net",
+    /** Hosts the apps really talk to (API, media CDN, push), not just their websites. */
+    val SERVICES = linkedMapOf(
+        "Instagram" to listOf(
+            "www.instagram.com",
+            "i.instagram.com",
+            "graph.instagram.com",
+            "static.cdninstagram.com",
+            "scontent.cdninstagram.com",
+            "edge-mqtt.facebook.com",
+            "graph.facebook.com",
+            "static.xx.fbcdn.net",
+        ),
+        "YouTube" to listOf(
+            "www.youtube.com",
+            "m.youtube.com",
+            "youtubei.googleapis.com",
+            "youtube.googleapis.com",
+            "i.ytimg.com",
+            "yt3.ggpht.com",
+            "yt3.googleusercontent.com",
+            "redirector.googlevideo.com",
+        ),
+        "TikTok" to listOf(
+            "www.tiktok.com",
+            "m.tiktok.com",
+            "www.tiktokv.com",
+            "api16-normal-c-useast1a.tiktokv.com",
+            "mon.tiktokv.com",
+            "p16-sign-va.tiktokcdn.com",
+            "v16m.tiktokcdn.com",
+        ),
+        "Facebook" to listOf(
+            "www.facebook.com",
+            "m.facebook.com",
+            "web.facebook.com",
+            "graph.facebook.com",
+            "b-graph.facebook.com",
+            "edge-mqtt.facebook.com",
+            "static.xx.fbcdn.net",
+            "scontent.xx.fbcdn.net",
+        ),
     )
 
-    suspend fun run(hosts: List<String>, timeoutSec: Int, out: (String) -> Unit) {
-        out("===== diagnostics")
+    suspend fun run(name: String, hosts: List<String>, timeoutSec: Int, out: (String) -> Unit) {
+        out("===== diagnostics: $name")
         val sys = Root.exec(
             """
             echo "private_dns_mode=$(settings get global private_dns_mode)"

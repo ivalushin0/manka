@@ -3,6 +3,7 @@ package app.manka.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -13,8 +14,11 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,6 +45,7 @@ fun LogsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var reload by remember { mutableIntStateOf(0) }
     var diagRunning by remember { mutableStateOf(false) }
+    var diagMenu by remember { mutableStateOf(false) }
     LaunchedEffect(reload) {
         val status = Module.status().values.entries.joinToString("\n") { "${it.key}=${it.value}" }
         text = "===== status\n$status\n\n" + Module.logs().ifBlank { context.getString(R.string.logs_empty) }
@@ -49,21 +54,34 @@ fun LogsScreen(vm: MainViewModel, onBack: () -> Unit) {
         title = stringResource(R.string.logs),
         onBack = onBack,
         actions = {
-            IconButton(enabled = !diagRunning, onClick = {
-                diagRunning = true
-                vm.say(R.string.diag_started)
-                scope.launch {
-                    val sb = StringBuilder()
-                    try {
-                        NetDiag.run(NetDiag.INSTAGRAM, vm.prefs.autoTimeoutSec) { line ->
-                            sb.appendLine(line)
-                            text = sb.toString()
-                        }
-                    } finally {
-                        diagRunning = false
+            Box {
+                IconButton(enabled = !diagRunning, onClick = { diagMenu = true }) {
+                    Icon(Icons.Filled.NetworkCheck, stringResource(R.string.diag))
+                }
+                DropdownMenu(expanded = diagMenu, onDismissRequest = { diagMenu = false }) {
+                    val all = stringResource(R.string.diag_all)
+                    val options = NetDiag.SERVICES.toList() +
+                        (all to NetDiag.SERVICES.values.flatten().distinct())
+                    options.forEach { (name, hosts) ->
+                        DropdownMenuItem(text = { Text(name) }, onClick = {
+                            diagMenu = false
+                            diagRunning = true
+                            vm.say(context.getString(R.string.diag_started, name))
+                            scope.launch {
+                                val sb = StringBuilder()
+                                try {
+                                    NetDiag.run(name, hosts, vm.prefs.autoTimeoutSec) { line ->
+                                        sb.appendLine(line)
+                                        text = sb.toString()
+                                    }
+                                } finally {
+                                    diagRunning = false
+                                }
+                            }
+                        })
                     }
                 }
-            }) { Icon(Icons.Filled.NetworkCheck, stringResource(R.string.diag)) }
+            }
             IconButton(onClick = { reload++ }) { Icon(Icons.Filled.Refresh, stringResource(R.string.refresh)) }
             IconButton(onClick = {
                 context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("manka log", text))

@@ -21,6 +21,9 @@ object Targets {
                 "https://yt3.ggpht.com/",
                 "https://redirector.googlevideo.com/report_mapping",
                 "https://youtubei.googleapis.com/",
+                "https://m.youtube.com/",
+                "https://youtube.googleapis.com/",
+                "https://yt3.googleusercontent.com/",
             ),
         ),
         TargetGroup(
@@ -52,6 +55,28 @@ object Targets {
                 "https://static.cdninstagram.com/",
                 "https://scontent.cdninstagram.com/",
                 "https://graph.facebook.com/",
+            ),
+        ),
+        TargetGroup(
+            "facebook", R.string.group_facebook,
+            listOf(
+                "https://www.facebook.com/",
+                "https://m.facebook.com/",
+                "https://graph.facebook.com/",
+                "https://b-graph.facebook.com/",
+                "https://static.xx.fbcdn.net/",
+                "https://scontent.xx.fbcdn.net/",
+            ),
+        ),
+        TargetGroup(
+            "tiktok", R.string.group_tiktok,
+            listOf(
+                "https://www.tiktok.com/",
+                "https://m.tiktok.com/",
+                "https://www.tiktokv.com/",
+                "https://api16-normal-c-useast1a.tiktokv.com/",
+                "https://p16-sign-va.tiktokcdn.com/",
+                "https://v16m.tiktokcdn.com/",
             ),
         ),
         TargetGroup(
