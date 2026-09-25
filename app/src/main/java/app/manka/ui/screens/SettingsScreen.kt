@@ -1,4 +1,4 @@
-enabled = dns != prefs.dnsServer && Applier.IPV4.matches(dns),package app.manka.ui.screens
+package app.manka.ui.screens
 
 import android.app.LocaleManager
 import android.os.Build
