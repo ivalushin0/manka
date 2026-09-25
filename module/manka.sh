@@ -35,9 +35,14 @@ IPV6=1
 BYEDPI_PORT=10801
 BYEDPI_TEST_PORT=10899
 BYEDPI_PORTS=80,443
-EXCLUDE_UIDS=
+APPS_MODE=exclude
+APP_UIDS=
 DEBUG=0
+# IPv4 DNS server all plain DNS is sent to while bypass is on (empty = system DNS)
+DNS_SERVER=
 [ -f "$DATA/settings.conf" ] && . "$DATA/settings.conf"
+# settings.conf from app versions before APPS_MODE
+[ -z "$APP_UIDS" ] && [ -n "$EXCLUDE_UIDS" ] && APP_UIDS=$EXCLUDE_UIDS
 
 PRIVATE4="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 127.0.0.0/8"
 PRIVATE6="fc00::/7 fe80::/10 ::1/128"
@@ -124,10 +129,27 @@ families() {
 	if [ "$IPV6" = 1 ]; then echo "ipt ip6t"; else echo "ipt"; fi
 }
 
+# app_gate CMD TABLE CHAIN SUBCHAIN: sends the traffic of the right apps from CHAIN to SUBCHAIN.
+#   APPS_MODE=exclude: every app except APP_UIDS    APPS_MODE=only: only APP_UIDS
+app_gate() {
+	$1 -t "$2" -N "$4" 2>/dev/null
+	$1 -t "$2" -F "$4"
+	if [ "$APPS_MODE" = only ]; then
+		for _u in $APP_UIDS; do
+			$1 -t "$2" -A "$3" -m owner --uid-owner "$_u" -j "$4"
+		done
+	else
+		for _u in $APP_UIDS; do
+			$1 -t "$2" -A "$3" -m owner --uid-owner "$_u" -j RETURN
+		done
+		$1 -t "$2" -A "$3" -j "$4"
+	fi
+}
+
 # setup_nfq QNUM main|test [UID] : NFQUEUE rules for zapret / zapret2
 setup_nfq() {
 	_q=$1; _mode=$2; _tuid=$3
-	if [ "$_mode" = test ]; then _o=MANKA_TOUT; _i=MANKA_TIN; else _o=MANKA_OUT; _i=MANKA_IN; fi
+	if [ "$_mode" = test ]; then _o=MANKA_TOUT; _oq=MANKA_TOUT; _i=MANKA_TIN; else _o=MANKA_OUT; _oq=MANKA_OUTQ; _i=MANKA_IN; fi
 	_jq="-j NFQUEUE --queue-num $_q --queue-bypass"
 	for _c in $(families); do
 		chain_init $_c mangle $_o OUTPUT || continue
@@ -138,27 +160,25 @@ setup_nfq() {
 		if [ "$_mode" = test ]; then
 			$_c -t mangle -A $_o -m owner ! --uid-owner "$_tuid" -j RETURN
 		else
-			for _u in $EXCLUDE_UIDS; do
-				$_c -t mangle -A $_o -m owner --uid-owner "$_u" -j RETURN
-			done
+			app_gate $_c mangle $_o $_oq
 		fi
 		$_c -t mangle -A $_i -i lo -j RETURN
 		skip_private $_c mangle $_i src
 		if [ "$HAS_CB" = 1 ]; then
-			add_ports $_c mangle $_o tcp dports "$TCP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT" $_jq
-			add_ports $_c mangle $_o udp dports "$UDP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT_UDP" $_jq
+			add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT" $_jq
+			add_ports $_c mangle $_oq udp dports "$UDP_PORTS" -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes "1:$PKT_OUT_UDP" $_jq
 			add_ports $_c mangle $_i tcp sports "$TCP_PORTS" -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes "1:$PKT_IN" $_jq
 			add_ports $_c mangle $_i udp sports "$UDP_PORTS" -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes "1:$PKT_IN" $_jq
 		else
 			# No connbytes in this kernel (typical for GKI). Keep the userspace load low anyway:
 			# SYN and packets that carry data go to nfqws, pure ACKs of downloads do not.
-			add_ports $_c mangle $_o tcp dports "$TCP_PORTS" --tcp-flags SYN,ACK,FIN,RST SYN $_jq
+			add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" --tcp-flags SYN,ACK,FIN,RST SYN $_jq
 			if [ "$HAS_LEN" = 1 ]; then
-				add_ports $_c mangle $_o tcp dports "$TCP_PORTS" -m length --length 81:65535 $_jq
+				add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" -m length --length 81:65535 $_jq
 			else
-				add_ports $_c mangle $_o tcp dports "$TCP_PORTS" $_jq
+				add_ports $_c mangle $_oq tcp dports "$TCP_PORTS" $_jq
 			fi
-			add_ports $_c mangle $_o udp dports "$UDP_PORTS" $_jq
+			add_ports $_c mangle $_oq udp dports "$UDP_PORTS" $_jq
 			add_ports $_c mangle $_i tcp sports "$TCP_PORTS" --tcp-flags SYN,ACK SYN,ACK $_jq
 		fi
 	done
@@ -176,10 +196,8 @@ setup_byedpi_rules() {
 		skip_private $_c nat MANKA_NAT dst
 		# ciadpi itself (and other root daemons) must not be looped back into ciadpi
 		$_c -t nat -A MANKA_NAT -m owner --uid-owner 0 -j RETURN
-		for _u in $EXCLUDE_UIDS; do
-			$_c -t nat -A MANKA_NAT -m owner --uid-owner "$_u" -j RETURN
-		done
-		add_ports $_c nat MANKA_NAT tcp dports "$BYEDPI_PORTS" -j REDIRECT --to-ports "$_port"
+		app_gate $_c nat MANKA_NAT MANKA_NATQ
+		add_ports $_c nat MANKA_NATQ tcp dports "$BYEDPI_PORTS" -j REDIRECT --to-ports "$_port"
 	done
 }
 
@@ -192,14 +210,12 @@ setup_filter() {
 		[ "$BLOCK_QUIC" = 1 ] || [ $_v6reset = 1 ] || continue
 		chain_init $_c filter MANKA_FLT OUTPUT || continue
 		$_c -t filter -A MANKA_FLT -o lo -j RETURN
-		for _u in $EXCLUDE_UIDS; do
-			$_c -t filter -A MANKA_FLT -m owner --uid-owner "$_u" -j RETURN
-		done
-		[ "$BLOCK_QUIC" = 1 ] && $_c -t filter -A MANKA_FLT -p udp --dport 443 -j REJECT
+		app_gate $_c filter MANKA_FLT MANKA_FLTQ
+		[ "$BLOCK_QUIC" = 1 ] && $_c -t filter -A MANKA_FLTQ -p udp --dport 443 -j REJECT
 		if [ $_v6reset = 1 ]; then
-			skip_private $_c filter MANKA_FLT dst
-			$_c -t filter -A MANKA_FLT -m owner --uid-owner 0 -j RETURN
-			add_ports $_c filter MANKA_FLT tcp dports "$BYEDPI_PORTS" -j REJECT --reject-with tcp-reset
+			skip_private $_c filter MANKA_FLTQ dst
+			$_c -t filter -A MANKA_FLTQ -m owner --uid-owner 0 -j RETURN
+			add_ports $_c filter MANKA_FLTQ tcp dports "$BYEDPI_PORTS" -j REJECT --reject-with tcp-reset
 		fi
 	done
 }
@@ -210,7 +226,37 @@ remove_main_rules() {
 		chain_del $_c mangle MANKA_IN PREROUTING
 		chain_del $_c nat MANKA_NAT OUTPUT
 		chain_del $_c filter MANKA_FLT OUTPUT
+		# gated sub-chains, no longer referenced now
+		for _sub in mangle:MANKA_OUTQ nat:MANKA_NATQ filter:MANKA_FLTQ; do
+			$_c -t "${_sub%%:*}" -F "${_sub#*:}" 2>/dev/null
+			$_c -t "${_sub%%:*}" -X "${_sub#*:}" 2>/dev/null
+		done
 	done
+}
+
+# Plain DNS (port 53) goes to DNS_SERVER instead of the ISP resolver, which answers blocked
+# domains with a stub address. IPv6 DNS is refused so the resolver falls back to IPv4.
+setup_dns() {
+	remove_dns
+	case "$DNS_SERVER" in
+		*.*.*.*) ;;
+		*) return 0 ;;
+	esac
+	chain_init ipt nat MANKA_DNS OUTPUT || return 0
+	ipt -t nat -A MANKA_DNS -d 127.0.0.0/8 -j RETURN
+	ipt -t nat -A MANKA_DNS -d "$DNS_SERVER" -j RETURN
+	ipt -t nat -A MANKA_DNS -p udp --dport 53 -j DNAT --to-destination "$DNS_SERVER:53"
+	ipt -t nat -A MANKA_DNS -p tcp --dport 53 -j DNAT --to-destination "$DNS_SERVER:53"
+	if chain_init ip6t filter MANKA_DNS6 OUTPUT; then
+		ip6t -t filter -A MANKA_DNS6 -o lo -j RETURN
+		ip6t -t filter -A MANKA_DNS6 -p udp --dport 53 -j REJECT
+		ip6t -t filter -A MANKA_DNS6 -p tcp --dport 53 -j REJECT --reject-with tcp-reset
+	fi
+}
+
+remove_dns() {
+	chain_del ipt nat MANKA_DNS OUTPUT
+	chain_del ip6t filter MANKA_DNS6 OUTPUT
 }
 
 remove_test_rules() {
@@ -463,10 +509,12 @@ cmd_start() {
 	rm -f "$RUN/testing"
 	stop_engine
 	if [ "$ENABLED" = 1 ]; then
+		setup_dns
 		select_profile "$(current_key)"
 		start_engine
 		is_running netwatch || start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	else
+		remove_dns
 		stop_daemon netwatch
 	fi
 	if [ "$TGWS" = 1 ]; then
@@ -493,6 +541,7 @@ cmd_net_apply() {
 
 cmd_stop() {
 	stop_daemon netwatch
+	remove_dns
 	stop_engine
 	remove_test_rules
 	stop_daemon test
@@ -543,6 +592,7 @@ cmd_status() {
 cmd_test_start() {
 	_engine=$1; _af=$2; _uid=$3
 	touch "$RUN/testing"
+	setup_dns
 	stop_engine
 	stop_daemon test
 	load_caps
@@ -579,6 +629,7 @@ cmd_boot() {
 	probe_caps
 	rm -f "$RUN/testing" "$RUN/key" "$RUN/profile"
 	if [ "$ENABLED" = 1 ]; then
+		setup_dns
 		select_profile "$(current_key)"
 		start_engine
 		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch

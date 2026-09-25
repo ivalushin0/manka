@@ -169,10 +169,14 @@
     <string name="store_unsupported">Windows only</string>
 
     <!-- apps -->
-    <string name="apps_title">Excluded apps</string>
+    <string name="apps_title">Apps</string>
+    <string name="apps_mode_exclude">All except checked</string>
+    <string name="apps_mode_only">Only checked</string>
+    <string name="apps_hint_only">Bypass works only for the checked apps (like the whitelist in ByeByeDPI). Other apps go directly.</string>
+    <string name="apps_only_empty">No app is checked: bypass will not work for anything.</string>
     <string name="apps_hint">Checked apps bypass Manka completely (banking apps, games with anti-cheat, etc.). Applies to the main user only.</string>
     <string name="apps_show_system">Show system apps</string>
-    <string name="apps_button">Excluded apps (%1$d)</string>
+    <string name="apps_button">Apps (%1$d)</string>
 
     <!-- settings -->
     <string name="settings_bypass">Bypass</string>
@@ -180,6 +184,13 @@
     <string name="block_quic_hint">Apps fall back to TCP, which the strategies handle best. Recommended.</string>
     <string name="ipv6">IPv6</string>
     <string name="ipv6_hint">Apply the bypass to IPv6 traffic too</string>
+    <string name="dns_title">DNS</string>
+    <string name="dns_hint">Where plain DNS requests go while bypass is on. The ISP DNS often answers blocked sites (Instagram, etc.) with a stub address, then no strategy helps. Like ByeByeDPI, Manka sends DNS to a public resolver.</string>
+    <string name="dns_system">System</string>
+    <string name="dns_google">Google</string>
+    <string name="dns_cloudflare">Cloudflare</string>
+    <string name="dns_quad9">Quad9</string>
+    <string name="dns_custom">DNS server (IPv4)</string>
     <string name="exclude_sites">Excluded sites</string>
     <string name="exclude_sites_hint">zapret does not touch these domains (and their subdomains). One per line.</string>
     <string name="tcp_ports">zapret TCP ports</string>

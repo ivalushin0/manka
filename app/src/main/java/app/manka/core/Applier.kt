@@ -26,6 +26,10 @@ class Applier(
         return EngineConfig(args, tcp, udp)
     }
 
+    /** UIDs for APP_UIDS; in whitelist mode Manka itself is included so its health checks see the bypass. */
+    fun appUids(): List<Int> =
+        if (prefs.appsOnly) (excludedUids() + android.os.Process.myUid()).distinct() else excludedUids()
+
     fun excludedUids(): List<Int> {
         val pm = context.packageManager
         return prefs.excludedPackages.mapNotNull { pkg ->
@@ -63,8 +67,10 @@ class Applier(
         kv("BYEDPI_PORTS", Args.ports(prefs.byedpiPorts).ifEmpty { "80,443" })
         kv("BLOCK_QUIC", if (prefs.blockQuic) 1 else 0)
         kv("IPV6", if (prefs.ipv6) 1 else 0)
-        kv("EXCLUDE_UIDS", "\"" + uids.joinToString(" ") + "\"")
+        kv("APPS_MODE", if (prefs.appsOnly) "only" else "exclude")
+        kv("APP_UIDS", "\"" + uids.joinToString(" ") + "\"")
         kv("DEBUG", if (prefs.debugLogs) 1 else 0)
+        kv("DNS_SERVER", prefs.dnsServer.trim().takeIf { IPV4.matches(it) }.orEmpty())
     }
 
     private fun tmp(name: String, content: String): File =
@@ -88,7 +94,7 @@ class Applier(
 
     suspend fun writeConfig() {
         val files = linkedMapOf(
-            "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(excludedUids())),
+            "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(appUids())),
             "${Paths.ARGS}/tgws.args" to argsFile("tgws.args", tgwsArgs()),
         )
         for (key in profileKeys()) {
@@ -116,6 +122,8 @@ class Applier(
     }
 
     companion object {
+        val IPV4 = Regex("""^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$""")
+
         val DEFAULT_EXCLUDE = listOf(
             "gosuslugi.ru", "nalog.gov.ru", "mos.ru", "sberbank.ru", "sber.ru", "tbank.ru", "tinkoff.ru",
             "vtb.ru", "alfabank.ru", "gazprombank.ru", "raiffeisen.ru", "psbank.ru", "sovcombank.ru",

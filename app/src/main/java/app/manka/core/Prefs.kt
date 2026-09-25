@@ -117,9 +117,17 @@ class Prefs(context: Context) {
     var fakeSni: String
         get() = str("fake_sni", "www.google.com")
         set(v) = sp.edit { putString("fake_sni", v) }
+    /** true: bypass only for [excludedPackages] (whitelist), false: for every app except them. */
+    var appsOnly: Boolean
+        get() = sp.getBoolean("apps_only", false)
+        set(v) = sp.edit { putBoolean("apps_only", v) }
     var excludedPackages: Set<String>
         get() = sp.getStringSet("excluded", emptySet()) ?: emptySet()
         set(v) = sp.edit { putStringSet("excluded", v) }
+    /** IPv4 DNS server for all plain DNS while bypass is on ("" = system DNS). */
+    var dnsServer: String
+        get() = str("dns_server", "8.8.8.8")
+        set(v) = sp.edit { putString("dns_server", v) }
     var debugLogs: Boolean
         get() = sp.getBoolean("debug", false)
         set(v) = sp.edit { putBoolean("debug", v) }

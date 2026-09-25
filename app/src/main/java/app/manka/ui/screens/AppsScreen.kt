@@ -24,6 +24,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +62,7 @@ fun AppsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var query by remember { mutableStateOf("") }
     var showSystem by remember { mutableStateOf(false) }
     var excluded by remember { mutableStateOf(vm.prefs.excludedPackages) }
+    var only by remember { mutableStateOf(vm.prefs.appsOnly) }
     val initial = remember { vm.prefs.excludedPackages }
 
     LaunchedEffect(Unit) {
@@ -82,6 +86,7 @@ fun AppsScreen(vm: MainViewModel, onBack: () -> Unit) {
 
     fun save() {
         vm.prefs.excludedPackages = excluded
+        vm.prefs.appsOnly = only
         if (vm.prefs.enabled) vm.apply()
         onBack()
     }
@@ -95,7 +100,20 @@ fun AppsScreen(vm: MainViewModel, onBack: () -> Unit) {
         actions = { IconButton(onClick = { save() }) { Icon(Icons.Filled.Check, stringResource(R.string.save)) } },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Hint(stringResource(R.string.apps_hint))
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = !only, onClick = { only = false },
+                    shape = SegmentedButtonDefaults.itemShape(0, 2),
+                ) { Text(stringResource(R.string.apps_mode_exclude)) }
+                SegmentedButton(
+                    selected = only, onClick = { only = true },
+                    shape = SegmentedButtonDefaults.itemShape(1, 2),
+                ) { Text(stringResource(R.string.apps_mode_only)) }
+            }
+            Hint(stringResource(if (only) R.string.apps_hint_only else R.string.apps_hint))
+            if (only && excluded.isEmpty()) {
+                Text(stringResource(R.string.apps_only_empty), color = MaterialTheme.colorScheme.error)
+            }
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
                 leadingIcon = { Icon(Icons.Filled.Search, null) },
