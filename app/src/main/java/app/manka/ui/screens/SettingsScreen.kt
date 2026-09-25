@@ -1,4 +1,4 @@
-package app.manka.ui.screens
+enabled = dns != prefs.dnsServer && Applier.IPV4.matches(dns),package app.manka.ui.screens
 
 import android.app.LocaleManager
 import android.os.Build
@@ -63,7 +63,7 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
     var udp by remember { mutableStateOf(prefs.udpPorts) }
     var byedpiPorts by remember { mutableStateOf(prefs.byedpiPorts) }
     var sni by remember { mutableStateOf(prefs.fakeSni) }
-    var dns by remember { mutableStateOf(prefs.dnsServer) }
+    var dns by remember { mutableStateOf(prefs.dnsServer.takeIf { Applier.IPV4.matches(it) }.orEmpty()) }
     var excludeText by remember { mutableStateOf<String?>(null) }
 
     fun applyIfOn() {
@@ -90,12 +90,12 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                 )
                 Text(stringResource(R.string.dns_title), style = MaterialTheme.typography.bodyLarge)
                 Hint(stringResource(R.string.dns_hint))
-                val dnsOptions = listOf("" to R.string.dns_system, "8.8.8.8" to R.string.dns_google, "1.1.1.1" to R.string.dns_cloudflare, "9.9.9.9" to R.string.dns_quad9)
+                val dnsOptions = listOf("" to R.string.dns_system, "doh:google" to R.string.dns_google, "doh:cloudflare" to R.string.dns_cloudflare, "doh:quad9" to R.string.dns_quad9)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     dnsOptions.forEachIndexed { i, (ip, label) ->
                         SegmentedButton(
                             selected = prefs.dnsServer == ip,
-                            onClick = { prefs.dnsServer = ip; dns = ip; applyIfOn() },
+                            onClick = { prefs.dnsServer = ip; dns = ""; applyIfOn() },
                             shape = SegmentedButtonDefaults.itemShape(i, dnsOptions.size),
                             icon = {},
                         ) { Text(stringResource(label), maxLines = 1) }
@@ -107,7 +107,7 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                     isError = dns.isNotEmpty() && !Applier.IPV4.matches(dns),
                     trailingIcon = {
                         TextButton(
-                            enabled = dns != prefs.dnsServer && (dns.isEmpty() || Applier.IPV4.matches(dns)),
+                            enabled = dns != prefs.dnsServer && Applier.IPV4.matches(dns),
                             onClick = { prefs.dnsServer = dns; applyIfOn() },
                         ) { Text(stringResource(R.string.save)) }
                     },

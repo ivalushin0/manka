@@ -51,6 +51,7 @@ app (Kotlin, Compose)  ──su──>  /data/adb/modules/manka/manka.sh
 - zapret и zapret2 — официальные Android-бинарники из релизов bol-van;
 - ByeDPI — сборка из исходников через Android NDK;
 - tg-ws-proxy-rs — сборка через cargo-ndk;
+- dnsproxy (DNS-over-HTTPS) — официальные статические сборки AdGuard;
 - снимок магазина CDPI UI кладётся в assets.
 
 Для подписи APK одним ключом добавьте секреты репозитория `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`,
@@ -64,5 +65,5 @@ app (Kotlin, Compose)  ──su──>  /data/adb/modules/manka/manka.sh
 Код Manka — MIT. Используемые компоненты:
 [zapret](https://github.com/bol-van/zapret) и [zapret2](https://github.com/bol-van/zapret2) (MIT),
 [ByeDPI](https://github.com/hufrea/byedpi) (MIT),
-[tg-ws-proxy-rs](https://github.com/valnesfjord/tg-ws-proxy-rs) (MIT),
+(https://github.com/AdguardTeam/dnsproxy) (Apache-2.0),
 каталог [CDPIUI-Store](https://github.com/Storik4pro/CDPIUI-Store) и наборы пресетов — по лицензиям их авторов.

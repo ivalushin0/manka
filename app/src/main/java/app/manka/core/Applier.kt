@@ -70,7 +70,12 @@ class Applier(
         kv("APPS_MODE", if (prefs.appsOnly) "only" else "exclude")
         kv("APP_UIDS", "\"" + uids.joinToString(" ") + "\"")
         kv("DEBUG", if (prefs.debugLogs) 1 else 0)
-        kv("DNS_SERVER", prefs.dnsServer.trim().takeIf { IPV4.matches(it) }.orEmpty())
+        val dns = prefs.dnsServer.trim()
+        val doh = DOH[dns]
+        kv("DNS_MODE", if (doh != null) "doh" else if (IPV4.matches(dns)) "plain" else "system")
+        // for doh: the plain server of the same provider, used if dnsproxy cannot start
+        kv("DNS_SERVER", doh?.plain ?: dns.takeIf { IPV4.matches(it) }.orEmpty())
+        kv("DNS_DOH", "\"" + doh?.urls.orEmpty().joinToString(" ") + "\"")
     }
 
     private fun tmp(name: String, content: String): File =
@@ -122,6 +127,15 @@ class Applier(
     }
 
     companion object {
+        data class Doh(val plain: String, val urls: List<String>)
+
+        /** DNS-over-HTTPS by IP address: no bootstrap DNS needed, the certificates cover the IPs. */
+        val DOH = mapOf(
+            "doh:google" to Doh("8.8.8.8", listOf("https://8.8.8.8/dns-query", "https://8.8.4.4/dns-query")),
+            "doh:cloudflare" to Doh("1.1.1.1", listOf("https://1.1.1.1/dns-query", "https://1.0.0.1/dns-query")),
+            "doh:quad9" to Doh("9.9.9.9", listOf("https://9.9.9.9/dns-query", "https://149.112.112.112/dns-query")),
+        )
+
         val IPV4 = Regex("""^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$""")
 
         val DEFAULT_EXCLUDE = listOf(

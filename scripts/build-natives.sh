@@ -104,10 +104,35 @@ build_tgws() {
 	install -m 755 "$WORK/cargo-target/armv7-linux-androideabi/release/tg-ws-proxy" "$OUT/libs/armeabi-v7a/tg-ws-proxy"
 }
 
+# ------------------------------------------------------------------ dnsproxy (official static Go builds, Apache-2.0)
+fetch_dnsproxy() {
+	local tag=${DNSPROXY_TAG:-}
+	[ -n "$tag" ] || tag=$(latest_tag AdguardTeam/dnsproxy)
+	echo "== AdguardTeam/dnsproxy $tag"
+	echo "dnsproxy=$tag" >> "$versions_file"
+	local dir="$WORK/dnsproxy"
+	rm -rf "$dir"; mkdir -p "$dir"
+	for abi in "${ABIS[@]}"; do
+		local arch
+		case "$abi" in
+			arm64-v8a) arch=arm64 ;;
+			armeabi-v7a) arch=arm7 ;;
+		esac
+		gh release download "$tag" --repo AdguardTeam/dnsproxy --pattern "dnsproxy-linux-$arch-$tag.tar.gz" --dir "$dir"
+		mkdir -p "$dir/$arch"
+		tar -xzf "$dir/dnsproxy-linux-$arch-$tag.tar.gz" -C "$dir/$arch"
+		local f
+		f=$(find "$dir/$arch" -name dnsproxy -type f | head -n1)
+		[ -n "$f" ] || { echo "no dnsproxy for $abi"; exit 1; }
+		install -m 755 "$f" "$OUT/libs/$abi/dnsproxy"
+	done
+}
+
 fetch_zapret bol-van/zapret "${ZAPRET_TAG:-}" nfqws
 fetch_zapret bol-van/zapret2 "${ZAPRET2_TAG:-}" nfqws2
 build_byedpi
 build_tgws
+fetch_dnsproxy
 
 echo "== result"
 find "$OUT" -type f | sort

@@ -40,6 +40,10 @@ object NetDiag {
             echo "private_dns_specifier=$(settings get global private_dns_specifier)"
             echo "ipv6_default_route=$(ip -6 route show default 2>/dev/null | head -1)"
             echo "ipv6_global_addr=$(ip -6 addr show scope global 2>/dev/null | grep -c inet6)"
+            sh ${Paths.SCRIPT} status 2>/dev/null | grep '^dns_'
+            echo "hosts_meta_entries=$(grep -icE 'instagram|facebook|fbcdn' /system/etc/hosts 2>/dev/null)"
+            grep -iE 'instagram|facebook|fbcdn' /system/etc/hosts 2>/dev/null | head -5
+            echo "--- dns.log"; tail -n 5 ${Paths.LOGS}/dns.log 2>/dev/null
             for p in $(ls ${Paths.PROFILES}/*.args 2>/dev/null); do echo "--- $(basename ${'$'}p)"; tr '\n' ' ' < ${'$'}p; echo; done
             echo "--- nat MANKA_DNS"; iptables -t nat -S MANKA_DNS 2>&1 | head -8
             echo "--- filter MANKA_FLTQ"; iptables -t filter -S MANKA_FLTQ 2>&1 | head -8

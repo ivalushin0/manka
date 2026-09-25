@@ -186,12 +186,12 @@
     <string name="ipv6">IPv6</string>
     <string name="ipv6_hint">Apply the bypass to IPv6 traffic too</string>
     <string name="dns_title">DNS</string>
-    <string name="dns_hint">Where plain DNS requests go while bypass is on. The ISP DNS often answers blocked sites (Instagram, etc.) with a stub address, then no strategy helps. Like ByeByeDPI, Manka sends DNS to a public resolver.</string>
+    <string name="dns_hint">Where DNS requests go while bypass is on. The ISP DNS often answers blocked sites (Instagram, etc.) with a stub or nothing, and some ISPs do the same to plain DNS sent to public servers — then no strategy helps. Google / Cloudflare / Quad9 are encrypted (DNS-over-HTTPS), the ISP cannot see or alter them. A custom server below is plain DNS.</string>
     <string name="dns_system">System</string>
     <string name="dns_google">Google</string>
     <string name="dns_cloudflare">Cloudflare</string>
     <string name="dns_quad9">Quad9</string>
-    <string name="dns_custom">DNS server (IPv4)</string>
+    <string name="dns_custom">Custom DNS server (IPv4, unencrypted)</string>
     <string name="exclude_sites">Excluded sites</string>
     <string name="exclude_sites_hint">zapret does not touch these domains (and their subdomains). One per line.</string>
     <string name="tcp_ports">zapret TCP ports</string>
@@ -217,7 +217,7 @@
     <string name="language_en">English</string>
     <string name="about">About</string>
     <string name="about_version">Manka %1$s</string>
-    <string name="about_credits">Built on zapret and zapret2 (bol-van), ByeDPI (hufrea), tg-ws-proxy (Flowseal) and its Rust port (valnesfjord), the CDPI UI store (Storik4pro). Inspired by ByeByeDPI.</string>
+    <string name="about_credits">Built on zapret and zapret2 (bol-van), ByeDPI (hufrea), tg-ws-proxy (Flowseal) and its Rust port (valnesfjord), the CDPI UI store (Storik4pro), dnsproxy (AdGuard). Inspired by ByeByeDPI.</string>
 
     <!-- notifications -->
     <string name="notify_degraded">The strategy stopped working: only %1$d%% of sites open. Open Manka to select a new one.</string>

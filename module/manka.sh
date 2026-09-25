@@ -38,11 +38,16 @@ BYEDPI_PORTS=80,443
 APPS_MODE=exclude
 APP_UIDS=
 DEBUG=0
-# IPv4 DNS server all plain DNS is sent to while bypass is on (empty = system DNS)
+# DNS while bypass is on, see setup_dns
+DNS_MODE=
 DNS_SERVER=
+DNS_DOH=
+DNS_PORT=5353
 [ -f "$DATA/settings.conf" ] && . "$DATA/settings.conf"
 # settings.conf from app versions before APPS_MODE
 [ -z "$APP_UIDS" ] && [ -n "$EXCLUDE_UIDS" ] && APP_UIDS=$EXCLUDE_UIDS
+# settings.conf from app versions before DNS_MODE
+[ -z "$DNS_MODE" ] && { [ -n "$DNS_SERVER" ] && DNS_MODE=plain || DNS_MODE=system; }
 
 PRIVATE4="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 127.0.0.0/8"
 PRIVATE6="fc00::/7 fe80::/10 ::1/128"
@@ -234,24 +239,67 @@ remove_main_rules() {
 	done
 }
 
-# Plain DNS (port 53) goes to DNS_SERVER instead of the ISP resolver, which answers blocked
-# domains with a stub address. IPv6 DNS is refused so the resolver falls back to IPv4.
+# DNS while bypass is on. The ISP resolver (and often plain DNS to public servers, which some
+# ISPs intercept) answers blocked domains with a stub or nothing, then no strategy helps.
+#   DNS_MODE=doh    local dnsproxy on 127.0.0.1:DNS_PORT forwarding to DNS-over-HTTPS (DNS_DOH),
+#                   falls back to plain DNS_SERVER if dnsproxy does not start
+#   DNS_MODE=plain  port 53 is sent to DNS_SERVER
+#   DNS_MODE=system untouched
+# IPv6 DNS is refused so the resolver uses IPv4. "Automatic" private DNS (DoT to the network's
+# resolver) is covered too; a resolver picked by name (strict mode) is left alone.
+start_dnsproxy() {
+	[ -x "$BIN/dnsproxy" ] || { log "dnsproxy missing, reinstall the module"; return 1; }
+	_conf="$DNS_PORT $DNS_DOH"
+	if is_running dns && [ "$(cat "$RUN/dns.conf" 2>/dev/null)" = "$_conf" ]; then
+		return 0
+	fi
+	set --
+	for _u in $DNS_DOH; do set -- "$@" -u "$_u"; done
+	[ $# -gt 0 ] || return 1
+	# Go reads CA certificates from here (the APEX copy is the up-to-date one on Android 14+)
+	_cd=
+	for _d in /apex/com.android.conscrypt/cacerts /system/etc/security/cacerts; do
+		[ -d "$_d" ] && _cd="$_cd:$_d"
+	done
+	export SSL_CERT_DIR="${_cd#:}"
+	start_daemon dns "$BIN/dnsproxy" "" -l 127.0.0.1 -p "$DNS_PORT" --cache --cache-optimistic --timeout=5s "$@"
+	if [ "$(await_daemon dns | tail -n1)" = ok ]; then
+		echo "$_conf" > "$RUN/dns.conf"
+		return 0
+	fi
+	log "dnsproxy did not start: $(tail -n 3 "$LOGDIR/dns.log" 2>/dev/null | tr '\n' ' ')"
+	stop_daemon dns
+	rm -f "$RUN/dns.conf"
+	return 1
+}
+
 setup_dns() {
 	remove_dns
-	case "$DNS_SERVER" in
-		*.*.*.*) ;;
-		*) return 0 ;;
-	esac
-	chain_init ipt nat MANKA_DNS OUTPUT || return 0
-	ipt -t nat -A MANKA_DNS -d 127.0.0.0/8 -j RETURN
-	ipt -t nat -A MANKA_DNS -d "$DNS_SERVER" -j RETURN
-	ipt -t nat -A MANKA_DNS -p udp --dport 53 -j DNAT --to-destination "$DNS_SERVER:53"
-	ipt -t nat -A MANKA_DNS -p tcp --dport 53 -j DNAT --to-destination "$DNS_SERVER:53"
-	# "Automatic" private DNS talks DoT to the network's resolver and would skip the rules above.
-	# A resolver picked by name (strict mode) is left alone: redirecting it breaks its certificate.
+	_to=
+	if [ "$DNS_MODE" = doh ] && start_dnsproxy; then
+		_to=local
+	else
+		[ "$DNS_MODE" = doh ] || stop_dns
+		[ "$DNS_MODE" = system ] || case "$DNS_SERVER" in *.*.*.*) _to=$DNS_SERVER ;; esac
+	fi
+	[ -n "$_to" ] || return 0
 	_dot=0
 	[ "$(settings get global private_dns_mode 2>/dev/null)" = hostname ] || _dot=1
-	[ $_dot = 1 ] && ipt -t nat -A MANKA_DNS -p tcp --dport 853 -j DNAT --to-destination "$DNS_SERVER:853"
+	chain_init ipt nat MANKA_DNS OUTPUT || return 0
+	ipt -t nat -A MANKA_DNS -d 127.0.0.0/8 -j RETURN
+	if [ "$_to" = local ]; then
+		ipt -t nat -A MANKA_DNS -p udp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
+		ipt -t nat -A MANKA_DNS -p tcp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
+		# DoT to the network's resolver is refused, the system then asks port 53 (redirected above)
+		if [ $_dot = 1 ] && chain_init ipt filter MANKA_DNSF OUTPUT; then
+			ipt -t filter -A MANKA_DNSF -p tcp --dport 853 -j REJECT --reject-with tcp-reset
+		fi
+	else
+		ipt -t nat -A MANKA_DNS -d "$_to" -j RETURN
+		ipt -t nat -A MANKA_DNS -p udp --dport 53 -j DNAT --to-destination "$_to:53"
+		ipt -t nat -A MANKA_DNS -p tcp --dport 53 -j DNAT --to-destination "$_to:53"
+		[ $_dot = 1 ] && ipt -t nat -A MANKA_DNS -p tcp --dport 853 -j DNAT --to-destination "$_to:853"
+	fi
 	if chain_init ip6t filter MANKA_DNS6 OUTPUT; then
 		ip6t -t filter -A MANKA_DNS6 -o lo -j RETURN
 		ip6t -t filter -A MANKA_DNS6 -p udp --dport 53 -j REJECT
@@ -263,7 +311,14 @@ setup_dns() {
 
 remove_dns() {
 	chain_del ipt nat MANKA_DNS OUTPUT
+	chain_del ipt filter MANKA_DNSF OUTPUT
 	chain_del ip6t filter MANKA_DNS6 OUTPUT
+}
+
+stop_dns() {
+	remove_dns
+	stop_daemon dns
+	rm -f "$RUN/dns.conf" "$RUN/dns.failed"
 }
 
 remove_test_rules() {
@@ -521,7 +576,7 @@ cmd_start() {
 		start_engine
 		is_running netwatch || start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	else
-		remove_dns
+		stop_dns
 		stop_daemon netwatch
 	fi
 	if [ "$TGWS" = 1 ]; then
@@ -548,7 +603,7 @@ cmd_net_apply() {
 
 cmd_stop() {
 	stop_daemon netwatch
-	remove_dns
+	stop_dns
 	stop_engine
 	remove_test_rules
 	stop_daemon test
@@ -586,6 +641,10 @@ cmd_status() {
 	_nw=0
 	is_running netwatch && _nw=1
 	echo "netwatch_running=$_nw"
+	_dr=0
+	is_running dns && _dr=1
+	echo "dns_mode=$DNS_MODE"
+	echo "dns_running=$_dr"
 	_failed=
 	for _f in "$RUN"/*.failed; do
 		[ -f "$_f" ] || continue
@@ -628,6 +687,7 @@ cmd_test_start() {
 cmd_test_stop() {
 	stop_daemon test
 	remove_test_rules
+	[ "$ENABLED" = 1 ] || stop_dns
 	echo ok
 }
 

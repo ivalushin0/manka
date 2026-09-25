@@ -17,6 +17,18 @@ class Prefs(context: Context) {
 
     init {
         sp.registerOnSharedPreferenceChangeListener(listener)
+        // plain DNS to public servers is intercepted by some ISPs: the presets became DNS-over-HTTPS
+        if (!sp.getBoolean("dns_v2", false)) {
+            val old = sp.getString("dns_server", null)
+            sp.edit {
+                when (old) {
+                    "8.8.8.8" -> putString("dns_server", "doh:google")
+                    "1.1.1.1" -> putString("dns_server", "doh:cloudflare")
+                    "9.9.9.9" -> putString("dns_server", "doh:quad9")
+                }
+                putBoolean("dns_v2", true)
+            }
+        }
     }
 
     private fun str(key: String, def: String) = sp.getString(key, def) ?: def
@@ -124,9 +136,9 @@ class Prefs(context: Context) {
     var excludedPackages: Set<String>
         get() = sp.getStringSet("excluded", emptySet()) ?: emptySet()
         set(v) = sp.edit { putStringSet("excluded", v) }
-    /** IPv4 DNS server for all plain DNS while bypass is on ("" = system DNS). */
+    /** DNS while bypass is on: "" = system, "doh:<provider>" (see Applier.DOH) or a plain IPv4 server. */
     var dnsServer: String
-        get() = str("dns_server", "8.8.8.8")
+        get() = str("dns_server", "doh:google")
         set(v) = sp.edit { putString("dns_server", v) }
     var debugLogs: Boolean
         get() = sp.getBoolean("debug", false)
