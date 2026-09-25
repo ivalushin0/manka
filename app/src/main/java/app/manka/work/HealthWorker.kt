@@ -40,9 +40,12 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val app = MankaApp.of(applicationContext)
         val prefs = app.prefs
         if (!prefs.enabled && !prefs.tgws) return Result.success()
+        // an auto selection has the bypass in test mode: nothing to check or repair now
+        if (app.autoSelector.busy) return Result.success()
 
         var status = Module.status()
         if (!status.usable) return Result.success()
+        if (status.values["testing"] == "1") return Result.success()
         // the network changed and the module did not notice (netwatch unavailable)
         val runningKey = status.values["key"].orEmpty()
         val netMismatch = (status.netType == "wifi" || status.netType == "mobile") &&
@@ -63,7 +66,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             }
         }
         StatusNotifier.update(applicationContext, status)
-        if (!prefs.enabled || app.autoSelector.state.value.running) return Result.success()
+        if (!prefs.enabled || app.autoSelector.busy) return Result.success()
 
         val profile = status.ownProfile
         val engine = prefs.engine(profile)
@@ -121,6 +124,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             if (groupRates.isEmpty()) return@forEachIndexed
             val rate = groupRates.average().toInt()
             if (rate >= 50) return@forEachIndexed
+            if (app.autoSelector.busy) return@forEachIndexed
             val id = NOTIFICATION_ID + 1 + i
             if (!prefs.autoReselect) {
                 notify(ctx, ctx.getString(R.string.notify_service_down, s.title), id)

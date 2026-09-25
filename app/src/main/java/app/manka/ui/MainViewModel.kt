@@ -113,7 +113,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _loaded.value = true
             StatusNotifier.update(app, _status.value)
             val s = _status.value
-            if (prefs.enabled && s.engineRunning && !autoSelector.state.value.running &&
+            if (prefs.enabled && s.engineRunning && !autoSelector.busy &&
                 System.currentTimeMillis() - prefs.serviceStatusTime > SERVICE_CHECK_INTERVAL
             ) {
                 checkServices()

@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -113,7 +115,7 @@ class AutoSelector(
     private var job: Job? = null
 
     fun start(request: AutoRequest) {
-        if (_state.value.running || _queue.value.active) return
+        if (busy) return
         job = scope.launch { run(request) }
     }
 
@@ -146,7 +148,15 @@ class AutoSelector(
     }
 
     /** Runs a full selection and returns the final state. Safe to call from a worker. */
-    suspend fun run(request: AutoRequest): AutoState {
+    suspend fun run(request: AutoRequest): AutoState = runLock.withLock { runLocked(request) }
+
+    /** Selections share the module's test engine: never two at once. */
+    private val runLock = Mutex()
+
+    /** A selection (single or "every service") is running: the module is in test mode. */
+    val busy get() = _state.value.running || _queue.value.active || runLock.isLocked
+
+    private suspend fun runLocked(request: AutoRequest): AutoState {
         presets.awaitLoaded()
         val external = if (request.byeByeDpi && Engine.BYEDPI in request.engines) {
             ExternalStrategies.byeByeDpi(context).also { presets.reloadCatalog() }
@@ -316,7 +326,7 @@ class AutoSelector(
      * services' own strategies. [base] gives the engine and options, targets come from each service.
      */
     fun startServices(base: AutoRequest, services: List<Service>) {
-        if (_state.value.running || _queue.value.active) return
+        if (busy) return
         job = scope.launch {
             _queue.value = QueueState(services = services.map { it.id })
             try {

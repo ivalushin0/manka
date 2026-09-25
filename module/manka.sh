@@ -740,6 +740,7 @@ cmd_status() {
 	echo "dns_mode=$DNS_MODE"
 	echo "dns_running=$_dr"
 	echo "hotspot=$HOTSPOT"
+	[ -f "$RUN/testing" ] && echo testing=1
 	# CPU share (x100, since the process started) and memory of every daemon
 	_hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
 	_up=$(cut -d. -f1 /proc/uptime)
