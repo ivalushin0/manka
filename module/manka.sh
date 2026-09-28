@@ -635,8 +635,11 @@ stop_engine() {
 	rm -f "$RUN/engine"
 }
 
+tgws_sum() { echo "$(md5sum < "$ARGS/tgws.args" 2>/dev/null) $TGWS_PORT"; }
+
 start_tgws() {
 	start_daemon tgws "$BIN/tg-ws-proxy" "$ARGS/tgws.args" --host 127.0.0.1 --port "$TGWS_PORT"
+	tgws_sum > "$RUN/tgws.sum"
 	log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT"
 }
 
@@ -690,7 +693,13 @@ cmd_start() {
 		stop_daemon netwatch
 	fi
 	if [ "$TGWS" = 1 ]; then
-		is_running tgws || start_tgws
+		# a running proxy keeps its connections, unless its settings changed (e.g. an app update)
+		if ! is_running tgws; then
+			start_tgws
+		elif [ "$(tgws_sum)" != "$(cat "$RUN/tgws.sum" 2>/dev/null)" ]; then
+			stop_daemon tgws
+			start_tgws
+		fi
 	else
 		stop_daemon tgws
 	fi
