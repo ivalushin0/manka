@@ -62,7 +62,7 @@ class Applier(
         // abandon the direct path for an hour (the default) after a single lost connection
         val extra = Args.split(prefs.tgwsExtraArgs)
         // a repeated option is an error for the proxy, the user's own value wins
-        for ((k, v) in listOf("--ws-connect-timeout" to "5", "--ip-fail-cooldown" to "60")) {
+        for ((k, v) in listOf("--ws-connect-timeout" to "3", "--ip-fail-cooldown" to "60")) {
             if (extra.none { it == k || it.startsWith("$k=") }) out += listOf(k, v)
         }
         out += extra
