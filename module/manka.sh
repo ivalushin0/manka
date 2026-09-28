@@ -45,6 +45,10 @@ DNS_MODE=
 DNS_SERVER=
 DNS_DOH=
 DNS_PORT=10853
+# never bypassed: root daemons (TG WS Proxy, dnsproxy, ciadpi) need no bypass and a strategy only
+# disturbs them; 1073 is the network stack, whose disturbed connectivity check leaves Wi-Fi
+# "without internet" and the phone on mobile data
+SYS_UIDS="0 1073"
 [ -f "$DATA/settings.conf" ] && . "$DATA/settings.conf"
 # settings.conf from app versions before APPS_MODE
 [ -z "$APP_UIDS" ] && [ -n "$EXCLUDE_UIDS" ] && APP_UIDS=$EXCLUDE_UIDS
@@ -185,8 +189,7 @@ setup_nfq() {
 		if [ "$_mode" = test ]; then
 			$_c -t mangle -A $_o -m owner ! --uid-owner "$_tuid" -j RETURN
 		else
-			# root daemons (TG WS Proxy, dnsproxy) need no bypass, and a strategy only disturbs them
-			$_c -t mangle -A $_o -m owner --uid-owner 0 -j RETURN
+			for _u in $SYS_UIDS; do $_c -t mangle -A $_o -m owner --uid-owner $_u -j RETURN; done
 			app_gate $_c mangle $_o $_oq
 		fi
 		nfq_out $_c $_oq
@@ -218,7 +221,7 @@ setup_byedpi_rules() {
 		$_c -t nat -A MANKA_NAT -o lo -j RETURN
 		skip_private $_c nat MANKA_NAT dst
 		# ciadpi itself (and other root daemons) must not be looped back into ciadpi
-		$_c -t nat -A MANKA_NAT -m owner --uid-owner 0 -j RETURN
+		for _u in $SYS_UIDS; do $_c -t nat -A MANKA_NAT -m owner --uid-owner $_u -j RETURN; done
 		app_gate $_c nat MANKA_NAT MANKA_NATQ
 		add_ports $_c nat MANKA_NATQ tcp dports "$BYEDPI_PORTS" -j REDIRECT --to-ports "$_port"
 	done
@@ -244,7 +247,7 @@ setup_filter() {
 		[ "$BLOCK_QUIC" = 1 ] && $_c -t filter -A MANKA_FLTQ -p udp --dport 443 -j REJECT
 		if [ $_v6reset = 1 ]; then
 			skip_private $_c filter MANKA_FLTQ dst
-			$_c -t filter -A MANKA_FLTQ -m owner --uid-owner 0 -j RETURN
+			for _u in $SYS_UIDS; do $_c -t filter -A MANKA_FLTQ -m owner --uid-owner $_u -j RETURN; done
 			add_ports $_c filter MANKA_FLTQ tcp dports "$BYEDPI_PORTS" -j REJECT --reject-with tcp-reset
 		fi
 		# the same for hotspot clients
