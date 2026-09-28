@@ -53,9 +53,19 @@ class Applier(
         val out = mutableListOf("--secret", prefs.tgwsSecret, "--pool-size", prefs.tgwsPoolSize.toString())
         if (!prefs.debugLogs) out += "-q"
         if (prefs.tgwsCloudflare) out += "--default-domains"
-        prefs.tgwsDcIps.split(',', ' ', '\n').map { it.trim() }.filter { it.matches(Regex("""\d+:[0-9a-fA-F.:]+""")) }
-            .forEach { out += listOf("--dc-ip", it) }
-        out += Args.split(prefs.tgwsExtraArgs)
+        val userIps = prefs.tgwsDcIps.split(',', ' ', '\n').map { it.trim() }.filter { it.matches(Regex("""\d+:[0-9a-fA-F.:]+""")) }
+        // without --dc-ip every DC goes through the shared Cloudflare domains (often HTTP 503);
+        // DC 2 and 4 answer directly on Telegram's web endpoint unless the user set their own address
+        val userDcs = userIps.map { it.substringBefore(':') }.toSet()
+        (TGWS_DC_IPS.filter { it.substringBefore(':') !in userDcs } + userIps).forEach { out += listOf("--dc-ip", it) }
+        // providers drop a share of new connections to Telegram: fail over quickly and do not
+        // abandon the direct path for an hour (the default) after a single lost connection
+        val extra = Args.split(prefs.tgwsExtraArgs)
+        // a repeated option is an error for the proxy, the user's own value wins
+        for ((k, v) in listOf("--ws-connect-timeout" to "5", "--ip-fail-cooldown" to "60")) {
+            if (extra.none { it == k || it.startsWith("$k=") }) out += listOf(k, v)
+        }
+        out += extra
         return out
     }
 
@@ -168,6 +178,9 @@ class Applier(
 
     companion object {
         private const val NEW_PROFILES = "${Paths.PROFILES}.new"
+
+        /** Telegram's web WebSocket front, which serves DC 2 and 4 (checked: the others redirect). */
+        val TGWS_DC_IPS = listOf("2:149.154.167.220", "4:149.154.167.220")
 
         data class Doh(val plain: String, val urls: List<String>)
 

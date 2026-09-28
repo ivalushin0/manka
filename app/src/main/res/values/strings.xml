@@ -79,7 +79,7 @@
     <string name="tgws_cf">Cloudflare fallback</string>
     <string name="tgws_cf_hint">Use the public CF proxy domains when Telegram WebSocket servers are blocked (--default-domains)</string>
     <string name="tgws_port">Port</string>
-    <string name="tgws_dc_ips">DC addresses (DC:IP, optional)</string>
+    <string name="tgws_dc_ips">DC addresses (DC:IP, default 2 and 4 → 149.154.167.220)</string>
     <string name="tgws_extra">Extra tg-ws-proxy arguments</string>
     <string name="tgws_new_secret">New secret</string>
     <string name="tgws_secret_hint">After changing the secret or port, tap Connect Telegram again.</string>

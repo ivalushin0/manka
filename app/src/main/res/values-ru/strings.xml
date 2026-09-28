@@ -77,7 +77,7 @@
     <string name="tgws_cf">Резерв через Cloudflare</string>
     <string name="tgws_cf_hint">Использовать публичные CF-домены, если WebSocket-серверы Telegram заблокированы (--default-domains)</string>
     <string name="tgws_port">Порт</string>
-    <string name="tgws_dc_ips">Адреса DC (DC:IP, необязательно)</string>
+    <string name="tgws_dc_ips">Адреса DC (DC:IP, по умолчанию 2 и 4 → 149.154.167.220)</string>
     <string name="tgws_extra">Дополнительные аргументы tg-ws-proxy</string>
     <string name="tgws_new_secret">Новый секрет</string>
     <string name="tgws_secret_hint">После смены секрета или порта снова нажмите «Подключить Telegram».</string>
