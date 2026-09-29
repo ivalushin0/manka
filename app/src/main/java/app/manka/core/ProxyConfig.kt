@@ -47,8 +47,27 @@ object ProxyConfig {
         }
     }
 
-    /** The whole Xray config: redirected TCP of the chosen apps -> the server. */
-    fun build(server: Server, port: Int = PORT): String = buildJsonObject {
+    /** Socket mark of the direct connections, the module sends them through the bypass (DIRECT_MARK). */
+    const val DIRECT_MARK = 0x20000000
+
+    /** Gemini in the Google app (seen on a phone) and on the web. */
+    val GEMINI_DOMAINS = listOf(
+        "robinfrontend-pa.googleapis.com", "signaler-pa.googleapis.com", "subscriptionsfirstparty-pa.googleapis.com",
+        "gemini.google.com", "bard.google.com", "generativelanguage.googleapis.com",
+        "alkalimakersuite-pa.clients6.google.com", "aistudio.google.com",
+    )
+
+    /** One domain per line (or separated by spaces / commas); subdomains are included. */
+    fun domains(text: String): List<String> = text.split('\n', ' ', ',', ';')
+        .map { it.trim().trimEnd('.').lowercase().removePrefix("https://").removePrefix("http://").substringBefore('/') }
+        .filter { it.contains('.') && it.all { c -> c.isLetterOrDigit() || c == '.' || c == '-' } }
+        .distinct()
+
+    /**
+     * The whole Xray config: redirected TCP of the chosen apps -> the server. With [only] the server
+     * gets just these domains (and their subdomains), the rest goes out directly, through the bypass.
+     */
+    fun build(server: Server, only: List<String>? = null, port: Int = PORT): String = buildJsonObject {
         // no access log: it would list every site the proxied apps open
         putJsonObject("log") { put("loglevel", "warning"); put("access", "none") }
         putJsonArray("inbounds") {
@@ -66,7 +85,29 @@ object ProxyConfig {
                 }
             })
         }
-        putJsonArray("outbounds") { add(server.outbound) }
+        putJsonArray("outbounds") {
+            add(server.outbound)
+            if (only != null) add(buildJsonObject {
+                put("tag", "direct")
+                put("protocol", "freedom")
+                putJsonObject("streamSettings") { putJsonObject("sockopt") { put("mark", DIRECT_MARK) } }
+            })
+        }
+        if (only != null) putJsonObject("routing") {
+            putJsonArray("rules") {
+                add(buildJsonObject {
+                    put("type", "field")
+                    // + the check in the app, which should show the server's address
+                    putJsonArray("domain") { (only + "ipinfo.io").forEach { add(JsonPrimitive("domain:$it")) } }
+                    put("outboundTag", "proxy")
+                })
+                add(buildJsonObject {
+                    put("type", "field")
+                    put("network", "tcp,udp")
+                    put("outboundTag", "direct")
+                })
+            }
+        }
     }.toString()
 
     // ---------------------------------------------------------------- links

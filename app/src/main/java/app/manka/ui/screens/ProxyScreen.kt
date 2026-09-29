@@ -59,6 +59,7 @@ fun ProxyScreen(vm: MainViewModel, nav: NavController) {
 
     var key by remember { mutableStateOf(prefs.proxyKey) }
     var showKey by remember { mutableStateOf(false) }
+    var domains by remember { mutableStateOf(prefs.proxyDomains) }
     var check by remember { mutableStateOf<String?>(null) }
     var checking by remember { mutableStateOf(false) }
     val parsed = remember(key) { runCatching { ProxyConfig.parse(key) } }
@@ -121,6 +122,37 @@ fun ProxyScreen(vm: MainViewModel, nav: NavController) {
                     ) { Text(stringResource(R.string.save)) }
                 }
                 Hint(stringResource(R.string.proxy_key_hint))
+            }
+
+            SectionCard(title = stringResource(R.string.proxy_route)) {
+                SwitchRow(
+                    title = stringResource(R.string.proxy_whole),
+                    subtitle = stringResource(R.string.proxy_whole_hint),
+                    checked = prefs.proxyWholeApps,
+                    onChange = { prefs.proxyWholeApps = it; check = null; if (prefs.proxy) vm.apply() },
+                )
+                if (!prefs.proxyWholeApps) {
+                    OutlinedTextField(
+                        value = domains, onValueChange = { domains = it },
+                        label = { Text(stringResource(R.string.proxy_domains)) },
+                        minLines = 3, maxLines = 10,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Hint(stringResource(R.string.proxy_domains_hint))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { domains = ProxyConfig.GEMINI_DOMAINS.joinToString("\n") }) {
+                            Text(stringResource(R.string.proxy_domains_reset))
+                        }
+                        Button(
+                            onClick = {
+                                prefs.proxyDomains = ProxyConfig.domains(domains).joinToString("\n")
+                                domains = prefs.proxyDomains
+                                if (prefs.proxy) vm.apply()
+                            },
+                            enabled = !busy && ProxyConfig.domains(domains) != ProxyConfig.domains(prefs.proxyDomains),
+                        ) { Text(stringResource(R.string.save)) }
+                    }
+                }
             }
 
             SectionCard(title = stringResource(R.string.proxy_apps_title)) {

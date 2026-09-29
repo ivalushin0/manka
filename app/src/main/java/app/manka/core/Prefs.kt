@@ -139,6 +139,13 @@ class Prefs(context: Context) {
     var proxyApps: Set<String>
         get() = sp.getStringSet("proxy_apps", null) ?: DEFAULT_PROXY_APPS
         set(v) = sp.edit { putStringSet("proxy_apps", v) }
+    /** false: only [proxyDomains] of these apps go to the server, the rest as before (bypass). */
+    var proxyWholeApps: Boolean
+        get() = sp.getBoolean("proxy_whole_apps", false)
+        set(v) = sp.edit { putBoolean("proxy_whole_apps", v) }
+    var proxyDomains: String
+        get() = str("proxy_domains", ProxyConfig.GEMINI_DOMAINS.joinToString("\n"))
+        set(v) = sp.edit { putString("proxy_domains", v) }
 
     // ---- bypass
     var blockQuic: Boolean

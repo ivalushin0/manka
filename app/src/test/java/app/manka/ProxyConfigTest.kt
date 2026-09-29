@@ -53,6 +53,25 @@ class ProxyConfigTest {
         assertTrue(s.summary, s.summary.contains("203.0.113.10:443"))
         assertTrue("no secrets in the summary", !s.summary.contains(uuid))
         keep("vless-reality", s)
+        samples["gemini-only"] = ProxyConfig.build(s, ProxyConfig.GEMINI_DOMAINS)
+    }
+
+    @Test
+    fun geminiOnly() {
+        val cfg = kotlinx.serialization.json.Json.parseToJsonElement(
+            ProxyConfig.build(ProxyConfig.parse(reality), listOf("gemini.google.com")),
+        ).jsonObject
+        val outs = cfg["outbounds"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(listOf("proxy", "direct"), outs.map { it.str("tag") })
+        assertEquals(ProxyConfig.DIRECT_MARK.toString(), outs[1].obj("streamSettings").obj("sockopt").str("mark"))
+        val rules = cfg.obj("routing")["rules"]!!.jsonArray.map { it.jsonObject }
+        assertEquals("proxy", rules[0].str("outboundTag"))
+        assertTrue(rules[0]["domain"]!!.jsonArray.any { it.jsonPrimitive.content == "domain:gemini.google.com" })
+        assertEquals("direct", rules.last().str("outboundTag"))
+        assertEquals(
+            listOf("gemini.google.com", "robinfrontend-pa.googleapis.com"),
+            ProxyConfig.domains(" https://Gemini.Google.com/app \nrobinfrontend-pa.googleapis.com, bad_host\n\n"),
+        )
     }
 
     @Test

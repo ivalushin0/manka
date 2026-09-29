@@ -338,14 +338,14 @@
     <!-- proxy for apps -->
     <string name="proxy_title">Proxy for apps</string>
     <string name="proxy_home_title">Through your own server</string>
-    <string name="proxy_hint">The chosen apps go online through your server (e.g. from AmneziaVPN), so services see the server address instead of yours. Needed for Gemini and other services closed to your country. No Android VPN is used, other apps work as before.</string>
+    <string name="proxy_hint">Services closed to your country (Gemini) go through your server (e.g. from AmneziaVPN), they see the server address. Everything else works as before, through the bypass. No Android VPN is used.</string>
     <string name="proxy_server">Server</string>
     <string name="proxy_key">Server key</string>
     <string name="proxy_key_empty">Paste the server key</string>
     <string name="proxy_paste">Paste</string>
     <string name="proxy_key_hint">Key from AmneziaVPN: Settings → Servers → your server → Share → XRay protocol. vpn://, vless://, trojan://, ss:// keys and an Xray JSON config work. The key stays on the phone and is not part of backups.</string>
     <string name="proxy_apps_title">Apps through the proxy</string>
-    <string name="proxy_apps_hint">The checked apps go online only through your server. They need no DPI bypass, it is turned off for them.</string>
+    <string name="proxy_apps_hint">In the checked apps the listed addresses go through your server, everything else as before, through the bypass.</string>
     <string name="proxy_apps_none">No apps chosen</string>
     <string name="proxy_apps_choose">Choose apps</string>
     <string name="proxy_check">Check</string>
@@ -364,4 +364,10 @@
     <string name="proxy_err_unsupported">Not supported: %s</string>
     <string name="proxy_err_subscription">This is an Amnezia subscription key, it cannot be used. A key of your own server with the XRay protocol is needed.</string>
     <string name="proxy_err_no_xray">The key has no XRay protocol (it has: %s). Add XRay to the server in AmneziaVPN.</string>
+    <string name="proxy_route">What goes through the server</string>
+    <string name="proxy_whole">The whole app</string>
+    <string name="proxy_whole_hint">Off: only the listed addresses go through the server (Gemini by default), search, feed and the rest as before. On: all traffic of the chosen apps.</string>
+    <string name="proxy_domains">Addresses through the server</string>
+    <string name="proxy_domains_hint">One per line, subdomains included. Gemini addresses by default.</string>
+    <string name="proxy_domains_reset">Gemini addresses</string>
 </resources>

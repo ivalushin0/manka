@@ -336,14 +336,14 @@
     <!-- proxy for apps -->
     <string name="proxy_title">Прокси для приложений</string>
     <string name="proxy_home_title">Через свой сервер</string>
-    <string name="proxy_hint">Выбранные приложения ходят в интернет через ваш сервер (например, из AmneziaVPN) — так сервисы видят адрес сервера, а не российский. Нужно для Gemini и других сервисов, закрытых для России. VPN в Android не включается, остальные приложения работают как раньше.</string>
+    <string name="proxy_hint">Сервисы, закрытые для России (Gemini), идут через ваш сервер (например, из AmneziaVPN) — они видят адрес сервера. Всё остальное работает как раньше, через обход. VPN в Android не включается.</string>
     <string name="proxy_server">Сервер</string>
     <string name="proxy_key">Ключ сервера</string>
     <string name="proxy_key_empty">Вставьте ключ сервера</string>
     <string name="proxy_paste">Вставить</string>
     <string name="proxy_key_hint">Ключ из AmneziaVPN: Настройки → Серверы → ваш сервер → Поделиться → протокол XRay. Подходят ключи vpn://, vless://, trojan://, ss:// и конфиг Xray в JSON. Ключ хранится только на телефоне и не попадает в резервную копию.</string>
     <string name="proxy_apps_title">Приложения через прокси</string>
-    <string name="proxy_apps_hint">Отмеченные приложения ходят в интернет только через ваш сервер. Обход блокировок для них не нужен и отключается.</string>
+    <string name="proxy_apps_hint">В отмеченных приложениях адреса из списка идут через ваш сервер, всё остальное — как раньше, через обход.</string>
     <string name="proxy_apps_none">Приложения не выбраны</string>
     <string name="proxy_apps_choose">Выбрать приложения</string>
     <string name="proxy_check">Проверка</string>
@@ -362,4 +362,10 @@
     <string name="proxy_err_unsupported">Не поддерживается: %s</string>
     <string name="proxy_err_subscription">Это ключ подписки Amnezia — он не подходит. Нужен ключ своего сервера с протоколом XRay.</string>
     <string name="proxy_err_no_xray">В ключе нет протокола XRay (есть: %s). Добавьте XRay на сервере в AmneziaVPN.</string>
+    <string name="proxy_route">Что идёт через сервер</string>
+    <string name="proxy_whole">Всё приложение целиком</string>
+    <string name="proxy_whole_hint">Выключено: через сервер идут только адреса из списка (по умолчанию — Gemini), поиск, лента и остальное — как раньше. Включено: весь трафик выбранных приложений.</string>
+    <string name="proxy_domains">Адреса через сервер</string>
+    <string name="proxy_domains_hint">По одному на строку, поддомены включаются. По умолчанию — адреса Gemini.</string>
+    <string name="proxy_domains_reset">Адреса Gemini</string>
 </resources>

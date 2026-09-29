@@ -53,6 +53,9 @@ SYS_UIDS="0 1073"
 PROXY=0
 PROXY_UIDS=
 PROXY_PORT=10820
+# socket mark of Xray's direct connections (see setup_nfq); Android keeps the network id in the
+# low 16 bits and zapret marks its own packets with 0x40000000
+DIRECT_MARK=0x20000000
 [ -f "$DATA/settings.conf" ] && . "$DATA/settings.conf"
 # settings.conf from app versions before APPS_MODE
 [ -z "$APP_UIDS" ] && [ -n "$EXCLUDE_UIDS" ] && APP_UIDS=$EXCLUDE_UIDS
@@ -200,6 +203,10 @@ setup_nfq() {
 		if [ "$_mode" = test ]; then
 			$_c -t mangle -A $_o -m owner ! --uid-owner "$_tuid" -j RETURN
 		else
+			# Xray's direct connections (proxied apps, sites not sent to the server) are marked:
+			# they get the bypass like any app although Xray runs as root
+			$_c -t mangle -N $_oq 2>/dev/null
+			$_c -t mangle -A $_o -m mark --mark $DIRECT_MARK/$DIRECT_MARK -j $_oq
 			for _u in $(skip_uids); do $_c -t mangle -A $_o -m owner --uid-owner $_u -j RETURN; done
 			app_gate $_c mangle $_o $_oq
 		fi
@@ -231,6 +238,8 @@ setup_byedpi_rules() {
 		chain_init $_c nat MANKA_NAT OUTPUT || continue
 		$_c -t nat -A MANKA_NAT -o lo -j RETURN
 		skip_private $_c nat MANKA_NAT dst
+		$_c -t nat -N MANKA_NATQ 2>/dev/null
+		$_c -t nat -A MANKA_NAT -m mark --mark $DIRECT_MARK/$DIRECT_MARK -j MANKA_NATQ
 		# ciadpi itself (and other root daemons) must not be looped back into ciadpi
 		for _u in $(skip_uids); do $_c -t nat -A MANKA_NAT -m owner --uid-owner $_u -j RETURN; done
 		app_gate $_c nat MANKA_NAT MANKA_NATQ

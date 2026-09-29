@@ -168,7 +168,10 @@ class Applier(
             files["$NEW_PROFILES/$key.args"] = argsFile("$key.args", cfg.args)
         }
         // the proxy config holds the server key: readable by root only, gone when the proxy is off
-        val proxy = proxyServer()?.let { tmp("proxy.json", ProxyConfig.build(it)) }
+        val proxy = proxyServer()?.let { s ->
+            val only = if (prefs.proxyWholeApps) null else ProxyConfig.domains(prefs.proxyDomains)
+            tmp("proxy.json", ProxyConfig.build(s, only))
+        }
         if (proxy != null) files[PROXY_CONFIG] = proxy
         val proxyScript = if (proxy != null) "chmod 0600 $PROXY_CONFIG" else "rm -f $PROXY_CONFIG"
         // profiles are swapped in at once (forgotten networks disappear, a running net-apply never
