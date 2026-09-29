@@ -295,8 +295,16 @@ class Prefs(context: Context) {
 
     companion object {
         private const val MAIN = "main"
-        /** Google app (Assistant / Gemini) and the Gemini app. */
-        val DEFAULT_PROXY_APPS = setOf("com.google.android.googlequicksearchbox", "com.google.android.apps.bard")
+        /**
+         * Google app (Assistant / Gemini), the Gemini app and the watch companions: a watch on
+         * Bluetooth goes online through them (Gemini on a Galaxy Watch6 was seen doing so).
+         */
+        val DEFAULT_PROXY_APPS = setOf(
+            "com.google.android.googlequicksearchbox", "com.google.android.apps.bard",
+            "com.samsung.wearable.watch4plugin", "com.samsung.wearable.watch5plugin",
+            "com.samsung.wearable.watch6plugin", "com.samsung.wearable.watch7plugin",
+            "com.google.android.apps.wear.companion",
+        )
     }
 
     /** Device state and secrets that must not travel with a backup: install markers, update bookkeeping, the proxy key. */

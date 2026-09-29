@@ -666,9 +666,10 @@ start_tgws() {
 }
 
 # ---------------------------------------------------------------- proxy for apps (Xray)
-# TCP of PROXY_UIDS is redirected to Xray, which sends it to the user's server (a foreign exit
-# address, e.g. for services closed to Russia). Their UDP (QUIC) and IPv6 are refused so the apps
-# fall back to TCP over IPv4; DNS stays as it is. Works with the bypass on or off, like TG WS Proxy.
+# TCP of PROXY_UIDS is redirected to Xray, which sends the chosen domains to the user's server (a
+# foreign exit address, e.g. for services closed to Russia) and the rest out directly. Their QUIC
+# and IPv6 TCP are refused so the apps fall back to TCP over IPv4; other UDP (calls of a watch behind
+# its companion app) and DNS stay as they are. Works with the bypass on or off, like TG WS Proxy.
 
 remove_proxy_rules() {
 	chain_del ipt nat MANKA_PRX OUTPUT
@@ -689,9 +690,9 @@ setup_proxy_rules() {
 	done
 	for _u in $PROXY_UIDS; do
 		ipt -t nat -A MANKA_PRX -p tcp -m owner --uid-owner "$_u" -j REDIRECT --to-ports "$PROXY_PORT"
-		ipt -t filter -A MANKA_PRXF -p udp ! --dport 53 -m owner --uid-owner "$_u" -j REJECT
+		ipt -t filter -A MANKA_PRXF -p udp --dport 443 -m owner --uid-owner "$_u" -j REJECT
 		ip6t -t filter -A MANKA_PRXF -p tcp -m owner --uid-owner "$_u" -j REJECT --reject-with tcp-reset
-		ip6t -t filter -A MANKA_PRXF -p udp ! --dport 53 -m owner --uid-owner "$_u" -j REJECT
+		ip6t -t filter -A MANKA_PRXF -p udp --dport 443 -m owner --uid-owner "$_u" -j REJECT
 	done
 	# only redirected connections may use Xray, other apps cannot reach the server through its port
 	if chain_init ipt filter MANKA_PRXG INPUT; then
