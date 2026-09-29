@@ -23,6 +23,10 @@ data class ModuleStatus(
     val engineRunning get() = values["engine_running"] == "1"
     val rulesOk get() = values["rules_ok"] == "1"
     val tgwsRunning get() = values["tgws_running"] == "1"
+    /** Xray runs and the chosen apps are redirected to it. */
+    val proxyRunning get() = values["proxy_running"] == "1"
+    /** false: the module has no Xray for this CPU (only 64-bit ARM is shipped). */
+    val proxyAvailable get() = values["proxy_available"] != "0"
     val failed get() = values["failed"].orEmpty().split(' ').filter { it.isNotBlank() && it != "netwatch" }
     val hasConnbytes get() = values["HAS_CB"] == "1"
     val hasNfqueue get() = values["HAS_NFQ"] != "0"

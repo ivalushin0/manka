@@ -56,33 +56,10 @@ private data class AppEntry(val pkg: String, val label: String, val system: Bool
 
 @Composable
 fun AppsScreen(vm: MainViewModel, onBack: () -> Unit) {
-    val context = LocalContext.current
     val busy by vm.busy.collectAsState()
-    var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
-    var query by remember { mutableStateOf("") }
-    var showSystem by remember { mutableStateOf(false) }
     var excluded by remember { mutableStateOf(vm.prefs.excludedPackages) }
     var only by remember { mutableStateOf(vm.prefs.appsOnly) }
     val initial = remember { vm.prefs.excludedPackages }
-
-    LaunchedEffect(Unit) {
-        apps = withContext(Dispatchers.IO) {
-            val pm = context.packageManager
-            @Suppress("DEPRECATION")
-            pm.getInstalledApplications(0)
-                .filter { it.packageName != context.packageName }
-                .filter { pm.checkPermission(android.Manifest.permission.INTERNET, it.packageName) == PackageManager.PERMISSION_GRANTED }
-                .map {
-                    AppEntry(
-                        pkg = it.packageName,
-                        label = it.loadLabel(pm).toString(),
-                        system = it.flags and ApplicationInfo.FLAG_SYSTEM != 0,
-                        info = it,
-                    )
-                }
-                .sortedWith(compareByDescending<AppEntry> { it.pkg in initial }.thenBy { it.label.lowercase() })
-        }
-    }
 
     fun save() {
         vm.prefs.excludedPackages = excluded
@@ -114,39 +91,101 @@ fun AppsScreen(vm: MainViewModel, onBack: () -> Unit) {
             if (only && excluded.isEmpty()) {
                 Text(stringResource(R.string.apps_only_empty), color = MaterialTheme.colorScheme.error)
             }
-            OutlinedTextField(
-                value = query, onValueChange = { query = it },
-                leadingIcon = { Icon(Icons.Filled.Search, null) },
-                placeholder = { Text(stringResource(R.string.search)) },
-                singleLine = true, modifier = Modifier.fillMaxWidth(),
-            )
-            SwitchRow(title = stringResource(R.string.apps_show_system), checked = showSystem, onChange = { showSystem = it })
-            val list = apps
-            if (list == null) {
-                CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-            } else {
-                val q = query.trim().lowercase()
-                val shown = list.filter { (showSystem || !it.system || it.pkg in excluded) }
-                    .filter { q.isEmpty() || it.label.lowercase().contains(q) || it.pkg.contains(q) }
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(shown, key = { it.pkg }) { app ->
-                        val checked = app.pkg in excluded
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { excluded = if (checked) excluded - app.pkg else excluded + app.pkg }
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            AppIcon(app.info)
-                            Spacer(Modifier.size(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(app.label, style = MaterialTheme.typography.bodyLarge)
-                                Hint(app.pkg)
-                            }
-                            Checkbox(checked = checked, onCheckedChange = {
-                                excluded = if (it) excluded + app.pkg else excluded - app.pkg
-                            })
+            AppChecklist(selected = excluded, onChange = { excluded = it }, firstUp = initial)
+        }
+    }
+}
+
+/** Apps chosen for "proxy for apps": their traffic goes through the user's server. */
+@Composable
+fun ProxyAppsScreen(vm: MainViewModel, onBack: () -> Unit) {
+    val busy by vm.busy.collectAsState()
+    var chosen by remember { mutableStateOf(vm.prefs.proxyApps) }
+    val initial = remember { vm.prefs.proxyApps }
+
+    fun save() {
+        if (chosen != initial) {
+            vm.prefs.proxyApps = chosen
+            if (vm.prefs.proxy) vm.apply()
+        }
+        onBack()
+    }
+
+    BackHandler { save() }
+
+    ScreenScaffold(
+        title = stringResource(R.string.proxy_apps_title),
+        onBack = { save() },
+        busy = busy,
+        actions = { IconButton(onClick = { save() }) { Icon(Icons.Filled.Check, stringResource(R.string.save)) } },
+    ) { pad ->
+        Column(Modifier.fillMaxSize().padding(pad), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Hint(stringResource(R.string.proxy_apps_hint))
+            AppChecklist(selected = chosen, onChange = { chosen = it }, firstUp = initial)
+        }
+    }
+}
+
+/** Searchable list of the installed apps with network access; [firstUp] are listed first. */
+@Composable
+private fun AppChecklist(selected: Set<String>, onChange: (Set<String>) -> Unit, firstUp: Set<String>) {
+    val context = LocalContext.current
+    var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
+    var query by remember { mutableStateOf("") }
+    var showSystem by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        apps = withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            @Suppress("DEPRECATION")
+            pm.getInstalledApplications(0)
+                .filter { it.packageName != context.packageName }
+                .filter { pm.checkPermission(android.Manifest.permission.INTERNET, it.packageName) == PackageManager.PERMISSION_GRANTED }
+                .map {
+                    AppEntry(
+                        pkg = it.packageName,
+                        label = it.loadLabel(pm).toString(),
+                        system = it.flags and ApplicationInfo.FLAG_SYSTEM != 0,
+                        info = it,
+                    )
+                }
+                .sortedWith(compareByDescending<AppEntry> { it.pkg in firstUp }.thenBy { it.label.lowercase() })
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = query, onValueChange = { query = it },
+            leadingIcon = { Icon(Icons.Filled.Search, null) },
+            placeholder = { Text(stringResource(R.string.search)) },
+            singleLine = true, modifier = Modifier.fillMaxWidth(),
+        )
+        SwitchRow(title = stringResource(R.string.apps_show_system), checked = showSystem, onChange = { showSystem = it })
+        val list = apps
+        if (list == null) {
+            CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+        } else {
+            val q = query.trim().lowercase()
+            val shown = list.filter { (showSystem || !it.system || it.pkg in selected || it.pkg in firstUp) }
+                .filter { q.isEmpty() || it.label.lowercase().contains(q) || it.pkg.contains(q) }
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(shown, key = { it.pkg }) { app ->
+                    val checked = app.pkg in selected
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clickable { onChange(if (checked) selected - app.pkg else selected + app.pkg) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppIcon(app.info)
+                        Spacer(Modifier.size(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(app.label, style = MaterialTheme.typography.bodyLarge)
+                            Hint(app.pkg)
                         }
+                        Checkbox(checked = checked, onCheckedChange = {
+                            onChange(if (it) selected + app.pkg else selected - app.pkg)
+                        })
                     }
                 }
             }

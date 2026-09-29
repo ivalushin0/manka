@@ -49,6 +49,10 @@ DNS_PORT=10853
 # disturbs them; 1073 is the network stack, whose disturbed connectivity check leaves Wi-Fi
 # "without internet" and the phone on mobile data
 SYS_UIDS="0 1073"
+# proxy for apps: PROXY_UIDS go through Xray ($DATA/proxy.json) to the user's own server
+PROXY=0
+PROXY_UIDS=
+PROXY_PORT=10820
 [ -f "$DATA/settings.conf" ] && . "$DATA/settings.conf"
 # settings.conf from app versions before APPS_MODE
 [ -z "$APP_UIDS" ] && [ -n "$EXCLUDE_UIDS" ] && APP_UIDS=$EXCLUDE_UIDS
@@ -140,6 +144,13 @@ families() {
 	if [ "$IPV6" = 1 ]; then echo "ipt ip6t"; else echo "ipt"; fi
 }
 
+# uids the bypass never touches: root daemons, the network stack and the apps that go through
+# Xray (a strategy's fake packets would land inside their proxied connections)
+skip_uids() {
+	echo "$SYS_UIDS"
+	[ "$PROXY" = 1 ] && echo "$PROXY_UIDS"
+}
+
 # app_gate CMD TABLE CHAIN SUBCHAIN: sends the traffic of the right apps from CHAIN to SUBCHAIN.
 #   APPS_MODE=exclude: every app except APP_UIDS    APPS_MODE=only: only APP_UIDS
 app_gate() {
@@ -189,7 +200,7 @@ setup_nfq() {
 		if [ "$_mode" = test ]; then
 			$_c -t mangle -A $_o -m owner ! --uid-owner "$_tuid" -j RETURN
 		else
-			for _u in $SYS_UIDS; do $_c -t mangle -A $_o -m owner --uid-owner $_u -j RETURN; done
+			for _u in $(skip_uids); do $_c -t mangle -A $_o -m owner --uid-owner $_u -j RETURN; done
 			app_gate $_c mangle $_o $_oq
 		fi
 		nfq_out $_c $_oq
@@ -221,7 +232,7 @@ setup_byedpi_rules() {
 		$_c -t nat -A MANKA_NAT -o lo -j RETURN
 		skip_private $_c nat MANKA_NAT dst
 		# ciadpi itself (and other root daemons) must not be looped back into ciadpi
-		for _u in $SYS_UIDS; do $_c -t nat -A MANKA_NAT -m owner --uid-owner $_u -j RETURN; done
+		for _u in $(skip_uids); do $_c -t nat -A MANKA_NAT -m owner --uid-owner $_u -j RETURN; done
 		app_gate $_c nat MANKA_NAT MANKA_NATQ
 		add_ports $_c nat MANKA_NATQ tcp dports "$BYEDPI_PORTS" -j REDIRECT --to-ports "$_port"
 	done
@@ -247,7 +258,7 @@ setup_filter() {
 		[ "$BLOCK_QUIC" = 1 ] && $_c -t filter -A MANKA_FLTQ -p udp --dport 443 -j REJECT
 		if [ $_v6reset = 1 ]; then
 			skip_private $_c filter MANKA_FLTQ dst
-			for _u in $SYS_UIDS; do $_c -t filter -A MANKA_FLTQ -m owner --uid-owner $_u -j RETURN; done
+			for _u in $(skip_uids); do $_c -t filter -A MANKA_FLTQ -m owner --uid-owner $_u -j RETURN; done
 			add_ports $_c filter MANKA_FLTQ tcp dports "$BYEDPI_PORTS" -j REJECT --reject-with tcp-reset
 		fi
 		# the same for hotspot clients
@@ -470,6 +481,8 @@ supervise() {
 		if [ $(( $(date +%s) - _t0 )) -lt 15 ]; then _fails=$((_fails + 1)); else _fails=0; fi
 		if [ $_fails -ge 5 ]; then
 			log "$_name keeps crashing, giving up"
+			# the proxied apps would be left without network
+			[ "$_name" = proxy ] && remove_proxy_rules
 			echo "$_rc" > "$RUN/$_name.failed"
 			break
 		fi
@@ -643,6 +656,83 @@ start_tgws() {
 	log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT"
 }
 
+# ---------------------------------------------------------------- proxy for apps (Xray)
+# TCP of PROXY_UIDS is redirected to Xray, which sends it to the user's server (a foreign exit
+# address, e.g. for services closed to Russia). Their UDP (QUIC) and IPv6 are refused so the apps
+# fall back to TCP over IPv4; DNS stays as it is. Works with the bypass on or off, like TG WS Proxy.
+
+remove_proxy_rules() {
+	chain_del ipt nat MANKA_PRX OUTPUT
+	chain_del ipt filter MANKA_PRXF OUTPUT
+	chain_del ip6t filter MANKA_PRXF OUTPUT
+	chain_del ipt filter MANKA_PRXG INPUT
+}
+
+setup_proxy_rules() {
+	remove_proxy_rules
+	chain_init ipt nat MANKA_PRX OUTPUT || return 1
+	ipt -t nat -A MANKA_PRX -o lo -j RETURN
+	skip_private ipt nat MANKA_PRX dst
+	for _c in ipt ip6t; do
+		chain_init $_c filter MANKA_PRXF OUTPUT || continue
+		$_c -t filter -A MANKA_PRXF -o lo -j RETURN
+		skip_private $_c filter MANKA_PRXF dst
+	done
+	for _u in $PROXY_UIDS; do
+		ipt -t nat -A MANKA_PRX -p tcp -m owner --uid-owner "$_u" -j REDIRECT --to-ports "$PROXY_PORT"
+		ipt -t filter -A MANKA_PRXF -p udp ! --dport 53 -m owner --uid-owner "$_u" -j REJECT
+		ip6t -t filter -A MANKA_PRXF -p tcp -m owner --uid-owner "$_u" -j REJECT --reject-with tcp-reset
+		ip6t -t filter -A MANKA_PRXF -p udp ! --dport 53 -m owner --uid-owner "$_u" -j REJECT
+	done
+	# only redirected connections may use Xray, other apps cannot reach the server through its port
+	if chain_init ipt filter MANKA_PRXG INPUT; then
+		ipt -t filter -A MANKA_PRXG -p tcp --dport "$PROXY_PORT" -m conntrack ! --ctstate DNAT -j DROP 2>/dev/null ||
+			log "no conntrack match, the proxy port is not guarded"
+	fi
+}
+
+proxy_sum() { echo "$(md5sum < "$DATA/proxy.json" 2>/dev/null)"; }
+
+stop_proxy() {
+	remove_proxy_rules
+	stop_daemon proxy
+	rm -f "$RUN/proxy.sum" "$RUN/proxy.failed"
+}
+
+# (re)starts Xray when needed and sets up the redirect; rules only while Xray runs, otherwise
+# the apps would lose the network altogether
+start_proxy() {
+	if [ "$PROXY" != 1 ] || [ -z "$PROXY_UIDS" ] || [ ! -f "$DATA/proxy.json" ]; then
+		stop_proxy
+		return 0
+	fi
+	if [ ! -x "$BIN/xray" ]; then
+		log "proxy: no Xray for this CPU (64-bit ARM only)"
+		stop_proxy
+		echo 1 > "$RUN/proxy.failed"
+		return 1
+	fi
+	if ! is_running proxy || [ "$(proxy_sum)" != "$(cat "$RUN/proxy.sum" 2>/dev/null)" ]; then
+		remove_proxy_rules
+		_cd=
+		for _d in /apex/com.android.conscrypt/cacerts /system/etc/security/cacerts; do
+			[ -d "$_d" ] && _cd="$_cd:$_d"
+		done
+		export SSL_CERT_DIR="${_cd#:}"
+		export GOMEMLIMIT=64MiB GOGC=50
+		start_daemon proxy "$BIN/xray" "" run -c "$DATA/proxy.json"
+		if [ "$(await_daemon proxy | tail -n1)" != ok ]; then
+			log "proxy did not start: $(tail -n 3 "$LOGDIR/proxy.log" 2>/dev/null | tr '\n' ' ')"
+			stop_daemon proxy
+			echo 1 > "$RUN/proxy.failed"
+			return 1
+		fi
+		proxy_sum > "$RUN/proxy.sum"
+		log "proxy started for uids $PROXY_UIDS"
+	fi
+	setup_proxy_rules
+}
+
 
 # Cheap fingerprint of the current network: default route plus the MAC of its gateway (two Wi-Fi
 # networks can share the same addresses, their routers do not share a MAC). No binder calls.
@@ -703,6 +793,7 @@ cmd_start() {
 	else
 		stop_daemon tgws
 	fi
+	start_proxy
 	cmd_status
 }
 
@@ -728,6 +819,7 @@ cmd_stop() {
 	remove_test_rules
 	stop_daemon test
 	stop_daemon tgws
+	stop_proxy
 	rm -f "$RUN/testing"
 	log "stopped"
 	cmd_status
@@ -768,6 +860,11 @@ cmd_status() {
 	is_running tgws && _tr=1
 	echo "tgws=$TGWS"
 	echo "tgws_running=$_tr"
+	_pr=0
+	is_running proxy && ipt -t nat -C OUTPUT -j MANKA_PRX 2>/dev/null && _pr=1
+	echo "proxy=$PROXY"
+	echo "proxy_running=$_pr"
+	[ -x "$BIN/xray" ] && echo proxy_available=1 || echo proxy_available=0
 	_nw=0
 	is_running netwatch && _nw=1
 	echo "netwatch_running=$_nw"
@@ -780,7 +877,7 @@ cmd_status() {
 	# CPU share (x100, since the process started) and memory of every daemon
 	_hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
 	_up=$(cut -d. -f1 /proc/uptime)
-	for _n in zapret zapret2 byedpi byedpi6 tgws dns netwatch; do
+	for _n in zapret zapret2 byedpi byedpi6 tgws dns netwatch proxy; do
 		_p=$(pid_of $_n)
 		[ -n "$_p" ] && [ -r "/proc/$_p/stat" ] || continue
 		_cs=$(sed 's/^.*) //' "/proc/$_p/stat" | awk -v hz="$_hz" -v up="$_up" '{ el = up * hz - $20; if (el < 1) el = 1; printf "%d", ($12 + $13) * 10000 / el }')
@@ -845,6 +942,7 @@ cmd_boot() {
 		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	fi
 	[ "$TGWS" = 1 ] && start_tgws
+	start_proxy
 }
 
 case "$1" in

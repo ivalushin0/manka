@@ -128,11 +128,27 @@ fetch_dnsproxy() {
 	done
 }
 
+# ------------------------------------------------------------------ Xray (official android build, MPL-2.0)
+# "Proxy for apps" through the user's own server. ~36 MB, so 64-bit only: the feature reports
+# itself unavailable on 32-bit phones.
+fetch_xray() {
+	local tag=${XRAY_TAG:-}
+	[ -n "$tag" ] || tag=$(latest_tag XTLS/Xray-core)
+	echo "== XTLS/Xray-core $tag"
+	echo "xray=$tag" >> "$versions_file"
+	local dir="$WORK/xray"
+	rm -rf "$dir"; mkdir -p "$dir"
+	gh release download "$tag" --repo XTLS/Xray-core --pattern "Xray-android-arm64-v8a.zip" --dir "$dir"
+	unzip -o -q "$dir/Xray-android-arm64-v8a.zip" xray -d "$dir"
+	install -m 755 "$dir/xray" "$OUT/libs/arm64-v8a/xray"
+}
+
 fetch_zapret bol-van/zapret "${ZAPRET_TAG:-}" nfqws
 fetch_zapret bol-van/zapret2 "${ZAPRET2_TAG:-}" nfqws2
 build_byedpi
 build_tgws
 fetch_dnsproxy
+fetch_xray
 
 echo "== result"
 find "$OUT" -type f | sort

@@ -128,6 +128,18 @@ class Prefs(context: Context) {
         get() = str("tgws_extra", "")
         set(v) = sp.edit { putString("tgws_extra", v) }
 
+    // ---- proxy for apps (see ProxyConfig)
+    var proxy: Boolean
+        get() = sp.getBoolean("proxy", false)
+        set(v) = sp.edit { putBoolean("proxy", v) }
+    /** The user's server key (vless://, vpn://, ...). A secret: not part of backups. */
+    var proxyKey: String
+        get() = str("proxy_key", "")
+        set(v) = sp.edit { putString("proxy_key", v) }
+    var proxyApps: Set<String>
+        get() = sp.getStringSet("proxy_apps", null) ?: DEFAULT_PROXY_APPS
+        set(v) = sp.edit { putStringSet("proxy_apps", v) }
+
     // ---- bypass
     var blockQuic: Boolean
         get() = sp.getBoolean("block_quic", true)
@@ -274,14 +286,16 @@ class Prefs(context: Context) {
         get() = str("bundled_kits", "")
         set(v) = sp.edit { putString("bundled_kits", v) }
 
-    /** Device state that must not travel with a backup: install markers, update bookkeeping. */
-    private companion object {
-        const val MAIN = "main"
+    companion object {
+        private const val MAIN = "main"
+        /** Google app (Assistant / Gemini) and the Gemini app. */
+        val DEFAULT_PROXY_APPS = setOf("com.google.android.googlequicksearchbox", "com.google.android.apps.bard")
     }
 
+    /** Device state and secrets that must not travel with a backup: install markers, update bookkeeping, the proxy key. */
     private fun backedUp(key: String) = !key.startsWith("kit_") && key !in setOf(
         "bundled_kits", "update_check", "module_update_pending", "store_check_time", "service_status", "service_status_time",
-        "last_check_time", "last_check_rate", "dns_v2",
+        "last_check_time", "last_check_rate", "dns_v2", "proxy_key",
     )
 
     private fun newSecret(): String {

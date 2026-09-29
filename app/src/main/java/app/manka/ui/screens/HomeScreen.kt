@@ -252,6 +252,19 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                     OutlinedButton(onClick = { nav.navigate("telegram") }) { Text(stringResource(R.string.settings)) }
                 }
             }
+
+            // ---- proxy for apps
+            SectionCard(title = stringResource(R.string.proxy_title)) {
+                SwitchRow(
+                    title = stringResource(R.string.proxy_home_title),
+                    subtitle = proxyState(vm),
+                    checked = prefs.proxy,
+                    enabled = status.usable && !busy && status.proxyAvailable &&
+                        (prefs.proxy || prefs.proxyKey.isNotBlank()),
+                    onChange = { prefs.proxy = it; vm.apply() },
+                )
+                OutlinedButton(onClick = { nav.navigate("proxy") }) { Text(stringResource(R.string.settings)) }
+            }
             Spacer(Modifier.size(8.dp))
         }
     }

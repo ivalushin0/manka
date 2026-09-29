@@ -333,4 +333,33 @@
     <string name="module_sum">Версия %1$s · логи, нагрузка</string>
     <string name="module_sum_missing">Не установлен</string>
     <string name="backup_sum">Настройки и стратегии в файле</string>
+    <!-- proxy for apps -->
+    <string name="proxy_title">Прокси для приложений</string>
+    <string name="proxy_home_title">Через свой сервер</string>
+    <string name="proxy_hint">Выбранные приложения ходят в интернет через ваш сервер (например, из AmneziaVPN) — так сервисы видят адрес сервера, а не российский. Нужно для Gemini и других сервисов, закрытых для России. VPN в Android не включается, остальные приложения работают как раньше.</string>
+    <string name="proxy_server">Сервер</string>
+    <string name="proxy_key">Ключ сервера</string>
+    <string name="proxy_key_empty">Вставьте ключ сервера</string>
+    <string name="proxy_paste">Вставить</string>
+    <string name="proxy_key_hint">Ключ из AmneziaVPN: Настройки → Серверы → ваш сервер → Поделиться → протокол XRay. Подходят ключи vpn://, vless://, trojan://, ss:// и конфиг Xray в JSON. Ключ хранится только на телефоне и не попадает в резервную копию.</string>
+    <string name="proxy_apps_title">Приложения через прокси</string>
+    <string name="proxy_apps_hint">Отмеченные приложения ходят в интернет только через ваш сервер. Обход блокировок для них не нужен и отключается.</string>
+    <string name="proxy_apps_none">Приложения не выбраны</string>
+    <string name="proxy_apps_choose">Выбрать приложения</string>
+    <string name="proxy_check">Проверка</string>
+    <string name="proxy_check_hint">Показывает, с какого адреса и из какой страны сервисы видят выбранные приложения.</string>
+    <string name="proxy_check_button">Проверить</string>
+    <string name="proxy_checking">Проверяю…</string>
+    <string name="proxy_check_failed">Сервер не ответил. Проверьте ключ и что сервер работает.</string>
+    <string name="proxy_check_result">Выход: %1$s · %2$s\n%3$s</string>
+    <string name="proxy_unavailable">Недоступно на этом процессоре (нужен 64-битный ARM)</string>
+    <string name="proxy_off">Выключено</string>
+    <string name="proxy_no_key">Нет ключа сервера</string>
+    <string name="proxy_running">Работает, приложений: %d</string>
+    <string name="proxy_not_running">Не запущен — см. журнал proxy</string>
+    <string name="proxy_err_format">Неизвестный формат ключа</string>
+    <string name="proxy_err_broken">Ключ повреждён или неполный</string>
+    <string name="proxy_err_unsupported">Не поддерживается: %s</string>
+    <string name="proxy_err_subscription">Это ключ подписки Amnezia — он не подходит. Нужен ключ своего сервера с протоколом XRay.</string>
+    <string name="proxy_err_no_xray">В ключе нет протокола XRay (есть: %s). Добавьте XRay на сервере в AmneziaVPN.</string>
 </resources>

@@ -110,11 +110,14 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Export strategies
-        run: gradle --no-daemon :app:testReleaseUnitTest --tests 'app.manka.ExportStrategiesTest'
+      - name: Export strategies, proxy key tests
+        run: gradle --no-daemon :app:testReleaseUnitTest --tests 'app.manka.ExportStrategiesTest' --tests 'app.manka.ProxyConfigTest'
 
       - name: Run them through nfqws, nfqws2 and ciadpi
         run: bash scripts/validate-strategies.sh app/build/strategies
+
+      - name: Check the proxy configs with Xray
+        run: bash scripts/validate-proxy.sh app/build/proxy
 
   apk:
     name: APK

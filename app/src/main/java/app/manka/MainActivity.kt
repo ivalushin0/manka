@@ -50,6 +50,8 @@ import app.manka.ui.screens.HistoryScreen
 import app.manka.ui.screens.HomeScreen
 import app.manka.ui.screens.LogsScreen
 import app.manka.ui.screens.PresetsScreen
+import app.manka.ui.screens.ProxyAppsScreen
+import app.manka.ui.screens.ProxyScreen
 import app.manka.ui.screens.SettingsScreen
 import app.manka.ui.screens.StoreScreen
 import app.manka.ui.screens.TelegramScreen
@@ -127,6 +129,10 @@ private fun MankaNav(vm: MainViewModel) {
             composable("settings") { SettingsScreen(vm, nav) }
             composable("telegram") { TelegramScreen(vm) { nav.popBackStack() } }
             composable("apps") { AppsScreen(vm) { nav.popBackStack() } }
+            composable("proxy") { ProxyScreen(vm, nav) }
+            composable("proxy_apps") { ProxyAppsScreen(vm) { nav.popBackStack() } }
+            composable("proxy") { ProxyScreen(vm, nav) }
+            composable("proxy_apps") { ProxyAppsScreen(vm) { nav.popBackStack() } }
             composable("logs") { LogsScreen(vm) { nav.popBackStack() } }
             composable(
                 "presets/{engine}/{net}?service={service}",

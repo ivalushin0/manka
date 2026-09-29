@@ -36,9 +36,12 @@ class Applier(
         if (prefs.appsOnly) (excludedUids() + android.os.Process.myUid() + app.manka.autoselect.RootChecker.UID).distinct()
         else excludedUids()
 
-    fun excludedUids(): List<Int> {
+    fun excludedUids(): List<Int> = uidsOf(prefs.excludedPackages)
+
+    /** UIDs of the installed packages among [packages]. */
+    fun uidsOf(packages: Set<String>): List<Int> {
         val pm = context.packageManager
-        return prefs.excludedPackages.mapNotNull { pkg ->
+        return packages.mapNotNull { pkg ->
             runCatching {
                 if (Build.VERSION.SDK_INT >= 33) {
                     pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0)).uid
@@ -93,7 +96,15 @@ class Applier(
         // for doh: the plain server of the same provider, used if dnsproxy cannot start
         kv("DNS_SERVER", doh?.plain ?: dns.takeIf { IPV4.matches(it) }.orEmpty())
         kv("DNS_DOH", "\"" + doh?.urls.orEmpty().joinToString(" ") + "\"")
+        val proxyUids = if (proxyServer() != null) uidsOf(prefs.proxyApps) else emptyList()
+        kv("PROXY", if (proxyUids.isNotEmpty()) 1 else 0)
+        kv("PROXY_UIDS", "\"" + proxyUids.joinToString(" ") + "\"")
+        kv("PROXY_PORT", ProxyConfig.PORT)
     }
+
+    /** The proxy server if the proxy is on and its key is valid. */
+    fun proxyServer(): ProxyConfig.Server? =
+        if (!prefs.proxy) null else runCatching { ProxyConfig.parse(prefs.proxyKey) }.getOrNull()
 
     private fun tmp(name: String, content: String): File =
         File(context.cacheDir, name).apply { writeText(content) }
@@ -156,13 +167,21 @@ class Applier(
             files["$NEW_PROFILES/$key.conf"] = tmp("$key.conf", profileConf(key, cfg))
             files["$NEW_PROFILES/$key.args"] = argsFile("$key.args", cfg.args)
         }
+        // the proxy config holds the server key: readable by root only, gone when the proxy is off
+        val proxy = proxyServer()?.let { tmp("proxy.json", ProxyConfig.build(it)) }
+        if (proxy != null) files[PROXY_CONFIG] = proxy
+        val proxyScript = if (proxy != null) "chmod 0600 $PROXY_CONFIG" else "rm -f $PROXY_CONFIG"
         // profiles are swapped in at once (forgotten networks disappear, a running net-apply never
         // sees a half-written folder); one root call for everything
-        val r = Module.copyIn(
-            files,
-            before = "rm -rf $NEW_PROFILES",
-            after = "rm -rf ${Paths.PROFILES} && mv $NEW_PROFILES ${Paths.PROFILES}\n" + excludeListScript(),
-        )
+        val r = try {
+            Module.copyIn(
+                files,
+                before = "rm -rf $NEW_PROFILES",
+                after = "rm -rf ${Paths.PROFILES} && mv $NEW_PROFILES ${Paths.PROFILES}\n$proxyScript\n" + excludeListScript(),
+            )
+        } finally {
+            proxy?.delete()
+        }
         if (!r.ok) throw java.io.IOException(r.out.lines().lastOrNull { it.isNotBlank() } ?: "cannot write the configuration")
     }
 
@@ -178,6 +197,7 @@ class Applier(
 
     companion object {
         private const val NEW_PROFILES = "${Paths.PROFILES}.new"
+        private const val PROXY_CONFIG = "${Paths.DATA}/proxy.json"
 
         /** Telegram's web WebSocket front, which serves DC 2 and 4 (checked: the others redirect). */
         val TGWS_DC_IPS = listOf("2:149.154.167.220", "4:149.154.167.220")
