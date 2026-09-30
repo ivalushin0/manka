@@ -90,6 +90,7 @@ class Applier(
         kv("APP_UIDS", "\"" + uids.joinToString(" ") + "\"")
         kv("DEBUG", if (prefs.debugLogs) 1 else 0)
         kv("HOTSPOT", if (prefs.hotspot) 1 else 0)
+        kv("META_FIX", if (prefs.metaFix) 1 else 0)
         val dns = prefs.dnsServer.trim()
         val doh = DOH[dns]
         kv("DNS_MODE", if (doh != null) "doh" else if (IPV4.matches(dns)) "plain" else "system")

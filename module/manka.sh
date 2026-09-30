@@ -53,6 +53,14 @@ SYS_UIDS="0 1073"
 PROXY=0
 PROXY_UIDS=
 PROXY_PORT=10820
+# Meta (WhatsApp, Instagram, Facebook): the old IPv4 ranges are blocked by address, the newer
+# 57.144.0.0/14 edge is not and serves every Meta host name. META_FIX=1 sends TCP to the blocked
+# ranges to a reachable edge address (checked at start) and refuses Meta's IPv6 (partly blocked,
+# no IPv6 NAT here) so apps use IPv4. The bypass is still needed, host names are blocked as well.
+META_FIX=0
+META_NETS="31.13.24.0/21 31.13.64.0/18 157.240.0.0/16 179.60.192.0/22 185.60.216.0/22 129.134.0.0/16 163.70.128.0/17 69.171.224.0/19 66.220.144.0/20 69.63.176.0/20 173.252.64.0/18 102.132.96.0/20 45.64.40.0/22 204.15.20.0/22"
+META_EDGES="57.144.249.32 57.144.248.34 57.144.173.32 57.144.245.33 57.144.244.34 57.144.172.34 57.144.249.33"
+META_NETS6="2a03:2880::/32"
 # socket mark of Xray's direct connections (see setup_nfq); Android keeps the network id in the
 # low 16 bits and zapret marks its own packets with 0x40000000
 DIRECT_MARK=0x20000000
@@ -703,6 +711,50 @@ setup_proxy_rules() {
 
 proxy_sum() { echo "$(md5sum < "$DATA/proxy.json" 2>/dev/null)"; }
 
+# ---------------------------------------------------------------- Meta address remap (see META_FIX)
+
+remove_meta() {
+	chain_del ipt nat MANKA_META OUTPUT
+	chain_del ipt nat MANKA_METAP PREROUTING
+	chain_del ip6t filter MANKA_META6 OUTPUT
+	rm -f "$RUN/meta_ip"
+}
+
+# the first edge address that accepts a connection on this network
+pick_meta_edge() {
+	for _ip in $META_EDGES; do
+		timeout 4 nc -z -w 3 "$_ip" 443 >/dev/null 2>&1 && { echo "$_ip"; return 0; }
+	done
+	return 1
+}
+
+setup_meta() {
+	remove_meta
+	[ "$META_FIX" = 1 ] || return 0
+	_edge=$(pick_meta_edge) || { log "meta: no reachable edge address, remap off"; return 1; }
+	chain_init ipt nat MANKA_META OUTPUT || return 1
+	ipt -t nat -A MANKA_META -o lo -j RETURN
+	# ByeDPI: apps must still be redirected to ciadpi (a DNAT here would skip that), the remap then
+	# applies to ciadpi's own connections
+	[ "$ENGINE" = byedpi ] && ipt -t nat -A MANKA_META -m owner ! --uid-owner 0 -j RETURN
+	for _n in $META_NETS; do
+		ipt -t nat -A MANKA_META -p tcp -d "$_n" -j DNAT --to-destination "$_edge"
+	done
+	# devices on the phone's hotspot
+	if [ "$HOTSPOT" = 1 ] && [ "$ENGINE" != byedpi ] && chain_init ipt nat MANKA_METAP PREROUTING; then
+		for _n in $META_NETS; do
+			ipt -t nat -A MANKA_METAP -p tcp -d "$_n" -j DNAT --to-destination "$_edge"
+		done
+	fi
+	if chain_init ip6t filter MANKA_META6 OUTPUT; then
+		for _n in $META_NETS6; do
+			ip6t -t filter -A MANKA_META6 -p tcp -d "$_n" -j REJECT --reject-with tcp-reset
+		done
+	fi
+	echo "$_edge" > "$RUN/meta_ip"
+	log "meta: blocked ranges go to $_edge"
+}
+
 stop_proxy() {
 	remove_proxy_rules
 	stop_daemon proxy
@@ -786,10 +838,12 @@ cmd_start() {
 		select_profile "$(current_key)"
 		start_engine
 		setup_guard
+		setup_meta
 		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	else
 		stop_dns
 		chain_del ipt filter MANKA_GUARD INPUT
+		remove_meta
 		stop_daemon netwatch
 	fi
 	if [ "$TGWS" = 1 ]; then
@@ -819,12 +873,15 @@ cmd_net_apply() {
 	stop_engine
 	select_profile "$_k"
 	start_engine
+	# the reachable Meta edge may differ on the new network
+	setup_meta
 }
 
 cmd_stop() {
 	stop_daemon netwatch
 	stop_dns
 	chain_del ipt filter MANKA_GUARD INPUT
+	remove_meta
 	stop_engine
 	remove_test_rules
 	stop_daemon test
@@ -883,6 +940,7 @@ cmd_status() {
 	echo "dns_mode=$DNS_MODE"
 	echo "dns_running=$_dr"
 	echo "hotspot=$HOTSPOT"
+	echo "meta_ip=$(cat "$RUN/meta_ip" 2>/dev/null)"
 	[ -f "$RUN/testing" ] && echo testing=1
 	# CPU share (x100, since the process started) and memory of every daemon
 	_hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
@@ -949,6 +1007,7 @@ cmd_boot() {
 		select_profile "$(current_key)"
 		start_engine
 		setup_guard
+		setup_meta
 		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	fi
 	[ "$TGWS" = 1 ] && start_tgws

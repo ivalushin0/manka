@@ -225,6 +225,10 @@ class Prefs(context: Context) {
     var discordVoice: Boolean
         get() = sp.getBoolean("discord_voice", false)
         set(v) = sp.edit { putBoolean("discord_voice", v) }
+    /** Blocked Meta addresses (WhatsApp, Instagram, Facebook) are sent to a reachable Meta edge (module META_FIX). */
+    var metaFix: Boolean
+        get() = sp.getBoolean("meta_fix", true)
+        set(v) = sp.edit { putBoolean("meta_fix", v) }
     /** Bypass and DNS for devices connected to the phone's hotspot / USB / Bluetooth tethering. */
     var hotspot: Boolean
         get() = sp.getBoolean("hotspot", false)

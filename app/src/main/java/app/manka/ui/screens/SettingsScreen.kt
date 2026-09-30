@@ -126,6 +126,13 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                     onChange = { prefs.discordVoice = it; applyIfOn() },
                 )
                 SwitchRow(
+                    title = stringResource(R.string.meta_fix),
+                    subtitle = if (prefs.metaFix && status.metaIp != null) stringResource(R.string.meta_fix_on, status.metaIp!!)
+                    else stringResource(R.string.meta_fix_hint),
+                    checked = prefs.metaFix,
+                    onChange = { prefs.metaFix = it; applyIfOn() },
+                )
+                SwitchRow(
                     title = stringResource(R.string.hotspot),
                     subtitle = stringResource(R.string.hotspot_hint),
                     checked = prefs.hotspot,

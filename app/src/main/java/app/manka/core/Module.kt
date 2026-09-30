@@ -23,6 +23,8 @@ data class ModuleStatus(
     val engineRunning get() = values["engine_running"] == "1"
     val rulesOk get() = values["rules_ok"] == "1"
     val tgwsRunning get() = values["tgws_running"] == "1"
+    /** Meta edge address the blocked Meta ranges go to, null when the remap is off. */
+    val metaIp get() = values["meta_ip"]?.takeIf { it.isNotBlank() }
     /** Xray runs and the chosen apps are redirected to it. */
     val proxyRunning get() = values["proxy_running"] == "1"
     /** false: the module has no Xray for this CPU (only 64-bit ARM is shipped). */

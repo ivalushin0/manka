@@ -370,4 +370,7 @@
     <string name="proxy_domains">Addresses through the server</string>
     <string name="proxy_domains_hint">One per line, subdomains included. Gemini addresses by default.</string>
     <string name="proxy_domains_reset">Gemini addresses</string>
+    <string name="meta_fix">Blocked Meta addresses (WhatsApp, Instagram)</string>
+    <string name="meta_fix_hint">Most WhatsApp / Instagram / Facebook servers are blocked by address, not only by name. Their connections are sent to a Meta server that is not blocked (checked on every network).</string>
+    <string name="meta_fix_on">On, through %s</string>
 </resources>
