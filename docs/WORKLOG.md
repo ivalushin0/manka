@@ -20,3 +20,8 @@
 - Исправление: подмена только для приложений WhatsApp (META_UIDS: com.whatsapp, com.whatsapp.w4b); в режиме ByeDPI выключена (не отличить приложения).
 - Telegram: на TrapHata прямой фронт 149.154.167.220 теперь 0/10 (было 8/10), все 10 проверенных адресов Telegram мертвы; Cloudflare-домены работают. Прокси с ip-fail-cooldown 60 каждую минуту терял 3 с на мёртвый адрес.
 - Исправление: модуль проверяет --dc-ip адреса (старт, смена сети, раз в 30 мин из netwatch, команда tgws-check) и при недоступности запускает прокси без --dc-ip (только Cloudflare). Статус tgws_direct, подпись на экране Telegram.
+
+## 2026-10-03 — проверка на мобильной сети (0.1.0-36)
+- Переключение на мобильную за 23 с; zapret2, всё запущено; Telegram — прямые адреса заблокированы и здесь (0/5), прокси через Cloudflare; WhatsApp-подмена на 57.144.249.32.
+- Через обход открылись YouTube, youtubei, Discord, i.instagram, graph.facebook, TikTok, scoresaber, beatleader, rutracker, x.com, Google. Не открылся только сайт www.instagram.com (31.13.72.174) — приложению Instagram не мешает (лента и фото загрузились).
+- Gemini через сервер — KZ. Telegram, WhatsApp, Instagram открылись и подключились. Wi-Fi возвращён.
