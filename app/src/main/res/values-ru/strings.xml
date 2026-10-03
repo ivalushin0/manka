@@ -64,6 +64,7 @@
     <string name="tgws_title">TG WS Proxy</string>
     <string name="tgws_off">Выключен</string>
     <string name="tgws_running">Работает на 127.0.0.1:%1$d</string>
+    <string name="tgws_running_cf">Работает на 127.0.0.1:%1$d через Cloudflare: прямые адреса Telegram в этой сети заблокированы</string>
     <string name="tgws_not_running">Не запущен</string>
     <string name="tgws_connect">Подключить Telegram</string>
     <string name="tgws_link_copied">Telegram не установлен, ссылка на прокси скопирована</string>
@@ -368,7 +369,7 @@
     <string name="proxy_domains">Адреса через сервер</string>
     <string name="proxy_domains_hint">По одному на строку, поддомены включаются. По умолчанию — адреса Gemini.</string>
     <string name="proxy_domains_reset">Адреса Gemini</string>
-    <string name="meta_fix">Заблокированные адреса Meta (WhatsApp, Instagram)</string>
-    <string name="meta_fix_hint">Большинство серверов WhatsApp, Instagram и Facebook заблокированы по адресу, а не только по имени. Их подключения направляются на незаблокированный сервер Meta (он проверяется в каждой сети).</string>
+    <string name="meta_fix">WhatsApp: заблокированные адреса</string>
+    <string name="meta_fix_hint">Чат-серверы WhatsApp заблокированы по адресу, а не только по имени. Подключения WhatsApp направляются на незаблокированный сервер WhatsApp (он проверяется в каждой сети). Instagram и Facebook не затрагиваются.</string>
     <string name="meta_fix_on">Включено, через %s</string>
 </resources>

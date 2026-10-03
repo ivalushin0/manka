@@ -91,6 +91,7 @@ class Applier(
         kv("DEBUG", if (prefs.debugLogs) 1 else 0)
         kv("HOTSPOT", if (prefs.hotspot) 1 else 0)
         kv("META_FIX", if (prefs.metaFix) 1 else 0)
+        kv("META_UIDS", "\"" + uidsOf(WHATSAPP).joinToString(" ") + "\"")
         val dns = prefs.dnsServer.trim()
         val doh = DOH[dns]
         kv("DNS_MODE", if (doh != null) "doh" else if (IPV4.matches(dns)) "plain" else "system")
@@ -202,6 +203,9 @@ class Applier(
     companion object {
         private const val NEW_PROFILES = "${Paths.PROFILES}.new"
         private const val PROXY_CONFIG = "${Paths.DATA}/proxy.json"
+
+        /** Apps the Meta remap applies to (module META_UIDS): its edges serve WhatsApp only. */
+        val WHATSAPP = setOf("com.whatsapp", "com.whatsapp.w4b")
 
         /** Telegram's web WebSocket front, which serves DC 2 and 4 (checked: the others redirect). */
         val TGWS_DC_IPS = listOf("2:149.154.167.220", "4:149.154.167.220")

@@ -66,6 +66,7 @@
     <string name="tgws_title">TG WS Proxy</string>
     <string name="tgws_off">Off</string>
     <string name="tgws_running">Running on 127.0.0.1:%1$d</string>
+    <string name="tgws_running_cf">Running on 127.0.0.1:%1$d through Cloudflare: Telegram\'s direct addresses are blocked on this network</string>
     <string name="tgws_not_running">Not running</string>
     <string name="tgws_connect">Connect Telegram</string>
     <string name="tgws_link_copied">Telegram is not installed, the proxy link was copied</string>
@@ -370,7 +371,7 @@
     <string name="proxy_domains">Addresses through the server</string>
     <string name="proxy_domains_hint">One per line, subdomains included. Gemini addresses by default.</string>
     <string name="proxy_domains_reset">Gemini addresses</string>
-    <string name="meta_fix">Blocked Meta addresses (WhatsApp, Instagram)</string>
-    <string name="meta_fix_hint">Most WhatsApp / Instagram / Facebook servers are blocked by address, not only by name. Their connections are sent to a Meta server that is not blocked (checked on every network).</string>
+    <string name="meta_fix">WhatsApp: blocked addresses</string>
+    <string name="meta_fix_hint">WhatsApp chat servers are blocked by address, not only by name. WhatsApp connections are sent to a WhatsApp server that is not blocked (checked on every network). Instagram and Facebook are not touched.</string>
     <string name="meta_fix_on">On, through %s</string>
 </resources>

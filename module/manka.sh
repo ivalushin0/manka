@@ -53,11 +53,12 @@ SYS_UIDS="0 1073"
 PROXY=0
 PROXY_UIDS=
 PROXY_PORT=10820
-# Meta (WhatsApp, Instagram, Facebook): the old IPv4 ranges are blocked by address, the newer
-# 57.144.0.0/14 edge is not and serves every Meta host name. META_FIX=1 sends TCP to the blocked
-# ranges to a reachable edge address (checked at start) and refuses Meta's IPv6 (partly blocked,
-# no IPv6 NAT here) so apps use IPv4. The bypass is still needed, host names are blocked as well.
+# WhatsApp: its chat servers in the old Meta ranges are blocked by address, the WhatsApp edges in
+# 57.144.0.0/14 are not. META_FIX=1 sends the TCP of META_UIDS (the WhatsApp apps) to those ranges
+# to a reachable edge (checked at start / network change) and refuses their Meta IPv6 (partly
+# blocked, no IPv6 NAT here). The bypass is still needed, host names are blocked as well.
 META_FIX=0
+META_UIDS=
 META_NETS="31.13.24.0/21 31.13.64.0/18 157.240.0.0/16 179.60.192.0/22 185.60.216.0/22 129.134.0.0/16 163.70.128.0/17 69.171.224.0/19 66.220.144.0/20 69.63.176.0/20 173.252.64.0/18 102.132.96.0/20 45.64.40.0/22 204.15.20.0/22"
 META_EDGES="57.144.249.32 57.144.248.34 57.144.173.32 57.144.245.33 57.144.244.34 57.144.172.34 57.144.249.33"
 META_NETS6="2a03:2880::/32"
@@ -667,10 +668,49 @@ stop_engine() {
 
 tgws_sum() { echo "$(md5sum < "$ARGS/tgws.args" 2>/dev/null) $TGWS_PORT"; }
 
+# Telegram's direct front (the --dc-ip addresses) is blocked altogether on some networks; the proxy
+# would then lose its connect timeout on it again and again before falling back. The addresses are
+# checked (start, network change, every 30 min) and left out while unreachable: Cloudflare only.
+tgws_dc_ips() {
+	awk 'take { sub(/^[0-9]+:/, ""); print; take = 0; next } $0 == "--dc-ip" { take = 1 }' "$ARGS/tgws.args" 2>/dev/null | sort -u
+}
+
+# 1: a direct address answers, 0: none does, empty: none configured
+tgws_direct() {
+	_ips=$(tgws_dc_ips)
+	[ -n "$_ips" ] || return 0
+	for _ip in $_ips; do
+		for _i in 1 2; do
+			timeout 3 nc -z -w 2 "$_ip" 443 >/dev/null 2>&1 && { echo 1; return 0; }
+		done
+	done
+	echo 0
+}
+
 start_tgws() {
-	start_daemon tgws "$BIN/tg-ws-proxy" "$ARGS/tgws.args" --host 127.0.0.1 --port "$TGWS_PORT"
+	_d=$(tgws_direct)
+	if [ "$_d" = 0 ]; then
+		awk 'skip { skip = 0; next } $0 == "--dc-ip" { skip = 1; next } { print }' "$ARGS/tgws.args" > "$RUN/tgws.args"
+	else
+		cp -f "$ARGS/tgws.args" "$RUN/tgws.args"
+	fi
+	echo "$_d" > "$RUN/tgws.direct"
+	start_daemon tgws "$BIN/tg-ws-proxy" "$RUN/tgws.args" --host 127.0.0.1 --port "$TGWS_PORT"
 	tgws_sum > "$RUN/tgws.sum"
-	log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT"
+	case "$_d" in
+		0) log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT, direct addresses blocked here: Cloudflare only" ;;
+		*) log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT" ;;
+	esac
+}
+
+# restarts the proxy when its direct addresses became (un)reachable
+tgws_check() {
+	[ "$TGWS" = 1 ] && is_running tgws || return 0
+	_d=$(tgws_direct)
+	[ "$_d" = "$(cat "$RUN/tgws.direct" 2>/dev/null)" ] && return 0
+	log "telegram direct addresses: $([ "$_d" = 1 ] && echo reachable || echo blocked)"
+	stop_daemon tgws
+	start_tgws
 }
 
 # ---------------------------------------------------------------- proxy for apps (Xray)
@@ -728,31 +768,32 @@ pick_meta_edge() {
 	return 1
 }
 
+# Only for the WhatsApp apps (META_UIDS): the 57.144.x edges serve WhatsApp alone, any other Meta
+# host name (Instagram, Facebook) gets a stub 404 there, and their own addresses are reachable.
 setup_meta() {
 	remove_meta
-	[ "$META_FIX" = 1 ] || return 0
+	[ "$META_FIX" = 1 ] && [ -n "$META_UIDS" ] || return 0
+	# ByeDPI: the apps' connections are made by ciadpi (root), they cannot be told apart
+	if [ "$ENGINE" = byedpi ]; then
+		log "meta: not with ByeDPI"
+		return 0
+	fi
 	_edge=$(pick_meta_edge) || { log "meta: no reachable edge address, remap off"; return 1; }
 	chain_init ipt nat MANKA_META OUTPUT || return 1
-	ipt -t nat -A MANKA_META -o lo -j RETURN
-	# ByeDPI: apps must still be redirected to ciadpi (a DNAT here would skip that), the remap then
-	# applies to ciadpi's own connections
-	[ "$ENGINE" = byedpi ] && ipt -t nat -A MANKA_META -m owner ! --uid-owner 0 -j RETURN
-	for _n in $META_NETS; do
-		ipt -t nat -A MANKA_META -p tcp -d "$_n" -j DNAT --to-destination "$_edge"
-	done
-	# devices on the phone's hotspot
-	if [ "$HOTSPOT" = 1 ] && [ "$ENGINE" != byedpi ] && chain_init ipt nat MANKA_METAP PREROUTING; then
+	for _u in $META_UIDS; do
 		for _n in $META_NETS; do
-			ipt -t nat -A MANKA_METAP -p tcp -d "$_n" -j DNAT --to-destination "$_edge"
+			ipt -t nat -A MANKA_META -p tcp -d "$_n" -m owner --uid-owner "$_u" -j DNAT --to-destination "$_edge"
 		done
-	fi
+	done
 	if chain_init ip6t filter MANKA_META6 OUTPUT; then
-		for _n in $META_NETS6; do
-			ip6t -t filter -A MANKA_META6 -p tcp -d "$_n" -j REJECT --reject-with tcp-reset
+		for _u in $META_UIDS; do
+			for _n in $META_NETS6; do
+				ip6t -t filter -A MANKA_META6 -p tcp -d "$_n" -m owner --uid-owner "$_u" -j REJECT --reject-with tcp-reset
+			done
 		done
 	fi
 	echo "$_edge" > "$RUN/meta_ip"
-	log "meta: blocked ranges go to $_edge"
+	log "meta: WhatsApp ($META_UIDS) goes to $_edge"
 }
 
 stop_proxy() {
@@ -810,9 +851,16 @@ net_sig() {
 # not wake a suspended phone.
 netwatch() {
 	_last=$(net_sig)
+	_n=0
 	while :; do
 		sleep 10
 		[ -f "$RUN/testing" ] && continue
+		# blocks change on the same network too: Telegram's direct addresses every 30 min
+		_n=$((_n + 1))
+		if [ $_n -ge 180 ]; then
+			_n=0
+			sh "$SELF" tgws-check </dev/null >/dev/null 2>&1
+		fi
 		_sig=$(net_sig)
 		[ "$_sig" = "$_last" ] && continue
 		_last=$_sig
@@ -873,8 +921,9 @@ cmd_net_apply() {
 	stop_engine
 	select_profile "$_k"
 	start_engine
-	# the reachable Meta edge may differ on the new network
+	# the reachable Meta edge and Telegram's direct addresses may differ on the new network
 	setup_meta
+	tgws_check
 }
 
 cmd_stop() {
@@ -927,6 +976,7 @@ cmd_status() {
 	is_running tgws && _tr=1
 	echo "tgws=$TGWS"
 	echo "tgws_running=$_tr"
+	echo "tgws_direct=$(cat "$RUN/tgws.direct" 2>/dev/null)"
 	_pr=0
 	is_running proxy && ipt -t nat -C OUTPUT -j MANKA_PRX 2>/dev/null && _pr=1
 	echo "proxy=$PROXY"
@@ -1033,6 +1083,7 @@ case "$1" in
 		[ "$TGWS" = 1 ] && start_tgws
 		cmd_status
 		;;
+	tgws-check) tgws_check ;;
 	test-start) shift; cmd_test_start "$@" ;;
 	test-stop) cmd_test_stop ;;
 	_supervise) shift; supervise "$@" ;;

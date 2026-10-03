@@ -62,8 +62,11 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
             SectionCard {
                 SwitchRow(
                     title = stringResource(R.string.tgws_title),
-                    subtitle = if (status.tgwsRunning) stringResource(R.string.tgws_running, prefs.tgwsPort)
-                    else stringResource(R.string.tgws_not_running),
+                    subtitle = when {
+                        !status.tgwsRunning -> stringResource(R.string.tgws_not_running)
+                        !status.tgwsDirect -> stringResource(R.string.tgws_running_cf, prefs.tgwsPort)
+                        else -> stringResource(R.string.tgws_running, prefs.tgwsPort)
+                    },
                     checked = prefs.tgws,
                     enabled = status.usable && !busy,
                     onChange = { vm.setTgws(it) },
