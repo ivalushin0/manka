@@ -1,6 +1,7 @@
 package app.manka.autoselect
 
 import app.manka.MankaApp
+import app.manka.core.Applier
 import app.manka.core.Module
 import app.manka.core.Root
 
@@ -40,7 +41,7 @@ object ServiceCheck {
         }
 
         // WhatsApp: as its own connections go, to the remapped address when the remap is on
-        if (app.applier.uidsOf(app.manka.core.Applier.WHATSAPP).isNotEmpty() && RootChecker.available()) {
+        if (app.applier.uidsOf(Applier.WHATSAPP).isNotEmpty() && RootChecker.available()) {
             val connectTo = status.metaIp?.let { "--connect-to ::$it:" }.orEmpty()
             val r = RootChecker.check(WHATSAPP_URLS, 1, timeoutSec, extraArgs = connectTo)
             val bad = r.filter { it.ok == 0 }

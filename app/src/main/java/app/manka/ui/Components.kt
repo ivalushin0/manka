@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.manka.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,7 +106,7 @@ fun SwitchRow(title: String, subtitle: String? = null, checked: Boolean, enabled
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(subtitle, style = HintStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
@@ -126,7 +127,19 @@ fun Mono(text: String, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VA
 
 @Composable
 fun Hint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(text, style = HintStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Hints and subtitles: a little larger than bodySmall (12 sp read poorly in the dark theme). */
+val HintStyle
+    @Composable get() = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp)
+
+/** Traffic-light colours of states: works, partly works, broken. Readable in light and dark themes. */
+object StatusColors {
+    val ok = Color(0xFF2EA043)
+    val warn = Color(0xFFD29922)
+    val bad = Color(0xFFDA3633)
+    val onColor = Color.White
 }
 
 /** Card that shows only its title and a one-line summary until tapped. */

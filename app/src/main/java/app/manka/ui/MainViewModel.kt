@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.manka.core.NetLists
 import app.manka.MankaApp
 import app.manka.R
 import android.net.Uri
@@ -132,7 +133,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 runCatching { store.compactKits() }
                 runCatching { store.importBundledKits() }
                 // addresses that change with the blocks, once a day (the worker does it too)
-                if (runCatching { app.manka.core.NetLists.refresh(prefs) }.getOrDefault(false)) apply()
+                if (runCatching { NetLists.refresh(prefs) }.getOrDefault(false)) apply()
             }
         }
     }

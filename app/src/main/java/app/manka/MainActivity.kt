@@ -50,6 +50,7 @@ import app.manka.ui.screens.HistoryScreen
 import app.manka.ui.screens.HomeScreen
 import app.manka.ui.screens.LogsScreen
 import app.manka.ui.screens.PresetsScreen
+import app.manka.ui.screens.ProfileScreen
 import app.manka.ui.screens.ProxyAppsScreen
 import app.manka.ui.screens.ProxyScreen
 import app.manka.ui.screens.SettingsScreen
@@ -131,8 +132,7 @@ private fun MankaNav(vm: MainViewModel) {
             composable("apps") { AppsScreen(vm) { nav.popBackStack() } }
             composable("proxy") { ProxyScreen(vm, nav) }
             composable("proxy_apps") { ProxyAppsScreen(vm) { nav.popBackStack() } }
-            composable("proxy") { ProxyScreen(vm, nav) }
-            composable("proxy_apps") { ProxyAppsScreen(vm) { nav.popBackStack() } }
+            composable("profile") { ProfileScreen(vm, nav) }
             composable("logs") { LogsScreen(vm) { nav.popBackStack() } }
             composable(
                 "presets/{engine}/{net}?service={service}",

@@ -15,6 +15,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import app.manka.core.NetLists
 import app.manka.MainActivity
 import app.manka.MankaApp
 import app.manka.R
@@ -66,7 +67,7 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             }
         }
         // addresses that change with the blocks (Meta, Telegram, Gemini): once a day
-        if (runCatching { app.manka.core.NetLists.refresh(prefs) }.getOrDefault(false)) {
+        if (runCatching { NetLists.refresh(prefs) }.getOrDefault(false)) {
             app.applier.apply()
             status = Module.status()
         }

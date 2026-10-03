@@ -267,7 +267,7 @@
     <string name="services_title">Сервисы</string>
     <string name="services_never">Ещё не проверялось.</string>
     <string name="services_time">Проверено %1$s</string>
-    <string name="services_tap_hint">Нажмите на сервис, который не работает, чтобы подобрать для него стратегию.</string>
+    <string name="services_tap_hint">Нажмите на сервис, чтобы узнать, что не открылось и что сделать.</string>
     <string name="services_check">Проверить</string>
     <string name="services_checking">Проверяю…</string>
     <string name="auto_target">Для чего подбирать</string>
@@ -372,4 +372,30 @@
     <string name="meta_fix">WhatsApp: заблокированные адреса</string>
     <string name="meta_fix_hint">Чат-серверы WhatsApp заблокированы по адресу, а не только по имени. Подключения WhatsApp направляются на незаблокированный сервер WhatsApp (он проверяется в каждой сети). Instagram и Facebook не затрагиваются.</string>
     <string name="meta_fix_on">Включено, через %s</string>
+    <!-- home screen -->
+    <string name="state_partial">Обход работает, но не все сервисы открылись — нажмите на сервис ниже</string>
+    <string name="profile_of">Профиль сети: %s</string>
+    <string name="profile_summary">Движок %1$s · стратегия: %2$s</string>
+    <string name="profile_open">Профиль и стратегии</string>
+    <string name="health_title">Фоновая проверка сайтов</string>
+    <string name="last_check_failed">Не открылись: %s</string>
+    <string name="health_hint">Сайты для проверки задаются в автоподборе. Если открывается меньше половины, Manka сама подберёт стратегию (настройка «Фоновая проверка»).</string>
+    <string name="proxy_home_gemini">Gemini через свой сервер</string>
+    <string name="proxy_home_whole">Приложения целиком через свой сервер</string>
+    <string name="proxy_home_list">Адреса из списка через сервер (%d)</string>
+    <string name="service_dialog_ok">Всё открылось.</string>
+    <string name="service_dialog_failed">Не открылись:\n%s</string>
+    <string name="service_dialog_down">Не работает.</string>
+    <string name="service_pick_hint">Можно подобрать для этого сервиса свою стратегию — остальные сайты она не затронет.</string>
+    <string name="service_dialog_pick">Подобрать стратегию</string>
+    <string name="service_whatsapp_hint">WhatsApp проверяется так, как он сам подключается: через незаблокированный адрес WhatsApp (настройка «WhatsApp: заблокированные адреса») и обход.</string>
+    <string name="service_telegram_hint">Telegram работает через TG WS Proxy. Проверка: отвечает прямой адрес Telegram или хотя бы один домен Cloudflare.</string>
+    <string name="service_gemini_hint">Gemini работает через ваш сервер. Проверка: Gemini отвечает и сервер выходит не из России (сейчас: %s).</string>
+    <string name="close">Закрыть</string>
+    <!-- auto selection, simple mode -->
+    <string name="auto_simple_title">Подбор для сети: %s</string>
+    <string name="auto_simple_summary">Подбираем: %1$s · движок: %2$s · режим: %3$s</string>
+    <string name="auto_simple_sites"> · наборов сайтов для проверки: %d</string>
+    <string name="auto_simple_more">Расширенные настройки</string>
+    <string name="auto_simple_hide">Скрыть настройки</string>
 </resources>

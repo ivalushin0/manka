@@ -43,6 +43,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
+import app.manka.core.NetLists
+import app.manka.core.ProxyConfig
+import app.manka.ui.StatusColors
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AssistChip
@@ -129,18 +136,28 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
             val update by vm.update.collectAsState()
             if (update.available || update.progress != null || update.installing) UpdateCard(vm)
 
-            // ---- power
+            // ---- power: the button shows the state in traffic-light colours
             val own = status.ownProfile
             val engine = prefs.engine(own)
             val running = prefs.enabled && status.engineRunning && status.rulesOk
+            val shown = remember(prefsVersion) { shownServices(vm) }
+            val servicesOk = shown.values.all { it >= 100 }
+            val stateColor = when {
+                !prefs.enabled -> null
+                running && servicesOk -> StatusColors.ok
+                running || status.failed.isEmpty() -> StatusColors.warn
+                else -> StatusColors.bad
+            }
             SectionCard {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     FilledIconButton(
                         onClick = { vm.setEnabled(!prefs.enabled) },
                         enabled = status.usable && !busy,
                         modifier = Modifier.size(128.dp),
-                        colors = if (prefs.enabled) IconButtonDefaults.filledIconButtonColors()
-                        else IconButtonDefaults.filledIconButtonColors(
+                        colors = if (stateColor != null) IconButtonDefaults.filledIconButtonColors(
+                            containerColor = stateColor,
+                            contentColor = StatusColors.onColor,
+                        ) else IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
@@ -159,66 +176,17 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                         else -> stringResource(R.string.state_starting)
                     }
                     Text(stateText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    if (running && !servicesOk) Hint(stringResource(R.string.state_partial))
                     if (prefs.enabled && status.usable && !status.hasNfqueue && engine != Engine.BYEDPI) {
                         Hint(stringResource(R.string.no_nfqueue))
                     }
                 }
             }
 
-            // ---- network profile: engine + strategy
-            val picked = pickedProfile ?: own
-            val keys = remember(prefsVersion, own) {
-                (listOf(own, Profiles.MOBILE, Profiles.WIFI) + prefs.knownWifi.keys.sorted()).distinct()
-            }
-            SectionCard(title = stringResource(R.string.profile)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    keys.forEach { key ->
-                        FilterChip(
-                            selected = picked == key,
-                            onClick = { vm.pickedProfile.value = key },
-                            label = { Text(profileTitle(vm, key) + if (key == own) " •" else "") },
-                        )
-                    }
-                }
-                Hint(stringResource(R.string.profile_hint, profileTitle(vm, own)))
-                if (Profiles.isSsid(picked) && !prefs.hasOwnEngine(picked)) {
-                    Hint(stringResource(R.string.profile_inherits))
-                }
-                val pEngine = prefs.engine(picked)
-                Text(stringResource(R.string.engine), style = MaterialTheme.typography.titleSmall)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    Engine.entries.forEachIndexed { i, e ->
-                        SegmentedButton(
-                            selected = pEngine == e,
-                            onClick = { vm.setEngine(picked, e) },
-                            shape = SegmentedButtonDefaults.itemShape(i, Engine.entries.size),
-                            enabled = !busy,
-                        ) { Text(e.title) }
-                    }
-                }
-                Hint(
-                    stringResource(
-                        when (pEngine) {
-                            Engine.ZAPRET2 -> R.string.engine_zapret2_hint
-                            Engine.ZAPRET -> R.string.engine_zapret_hint
-                            Engine.BYEDPI -> R.string.engine_byedpi_hint
-                        },
-                    ),
-                )
-                val active = remember(presetsList, pEngine, picked, prefsVersion) { vm.presets.active(pEngine, picked) }
-                Text(stringResource(R.string.strategy_current, active.name), style = MaterialTheme.typography.bodyMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { nav.navigate("presets/${pEngine.id}/$picked") }) {
-                        Text(stringResource(R.string.strategy_choose))
-                    }
-                    Button(onClick = { nav.switchTab("auto") }) { Text(stringResource(R.string.strategy_autoselect)) }
-                }
-                if (pEngine != Engine.BYEDPI) {
-                    ServiceStrategies(vm, nav, pEngine, picked, prefsVersion)
-                }
-                if (Profiles.isSsid(picked) && prefs.knownWifi.containsKey(picked)) {
-                    TextButton(onClick = { vm.forgetWifi(picked) }) { Text(stringResource(R.string.profile_forget)) }
-                }
+            // ---- network profile: a summary, the settings are on their own screen
+            SectionCard(title = stringResource(R.string.profile_of, profileTitle(vm, own))) {
+                val active = remember(presetsList, engine, own, prefsVersion) { vm.presets.active(engine, own) }
+                Text(stringResource(R.string.profile_summary, engine.title, active.name), style = MaterialTheme.typography.bodyMedium)
                 if (prefs.lastCheckTime > 0 && prefs.lastCheckRate >= 0) {
                     Hint(
                         stringResource(
@@ -227,6 +195,12 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                             prefs.lastCheckRate,
                         ),
                     )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { vm.pickedProfile.value = null; nav.navigate("profile") }) {
+                        Text(stringResource(R.string.profile_open))
+                    }
+                    Button(onClick = { nav.switchTab("auto") }) { Text(stringResource(R.string.strategy_autoselect)) }
                 }
             }
 
@@ -238,8 +212,9 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                     title = stringResource(R.string.tgws_title),
                     subtitle = when {
                         !prefs.tgws -> stringResource(R.string.tgws_off)
-                        status.tgwsRunning -> stringResource(R.string.tgws_running, prefs.tgwsPort)
-                        else -> stringResource(R.string.tgws_not_running)
+                        !status.tgwsRunning -> stringResource(R.string.tgws_not_running)
+                        !status.tgwsDirect -> stringResource(R.string.tgws_running_cf, prefs.tgwsPort)
+                        else -> stringResource(R.string.tgws_running, prefs.tgwsPort)
                     },
                     checked = prefs.tgws,
                     enabled = status.usable && !busy,
@@ -256,7 +231,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
             // ---- proxy for apps
             SectionCard(title = stringResource(R.string.proxy_title)) {
                 SwitchRow(
-                    title = stringResource(R.string.proxy_home_title),
+                    title = proxyHomeTitle(vm),
                     subtitle = proxyState(vm),
                     checked = prefs.proxy,
                     enabled = status.usable && !busy && status.proxyAvailable &&
@@ -294,84 +269,122 @@ fun profileTitle(vm: MainViewModel, key: String): String = when {
         ?: stringResource(R.string.net_wifi)
 }
 
-/** zapret / zapret2: own strategies of YouTube, Instagram, ... in the profile (folded). */
+
+/** "Gemini through your server · KZ", or the number of listed addresses when the list was edited. */
 @Composable
-private fun ServiceStrategies(vm: MainViewModel, nav: NavHostController, engine: Engine, profile: String, version: Int) {
-    var open by remember { mutableStateOf(false) }
-    val presets by vm.presets.presets.collectAsState()
-    val own = remember(version, presets, engine, profile) {
-        Services.all.associate { it.id to vm.prefs.servicePreset(engine, profile, it.id) }
+private fun proxyHomeTitle(vm: MainViewModel): String {
+    val prefs = vm.prefs
+    val country = prefs.proxyCountry.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
+    val domains = ProxyConfig.domains(prefs.proxyDomains)
+    val gemini = NetLists.current(prefs).geminiDomains
+    return when {
+        prefs.proxyWholeApps -> stringResource(R.string.proxy_home_whole) + country
+        domains.toSet() == gemini.toSet() -> stringResource(R.string.proxy_home_gemini) + country
+        else -> stringResource(R.string.proxy_home_list, domains.size) + country
     }
-    val count = own.values.count { it != null }
-    Row(
-        Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(R.string.service_strategies, count),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
-    }
-    if (!open) return
-    Hint(stringResource(R.string.service_strategies_hint))
-    Services.all.forEach { s ->
-        val id = own[s.id]
-        val value = when (id) {
-            null -> stringResource(R.string.service_use_main)
-            Services.OFF -> stringResource(R.string.service_off)
-            else -> vm.presets.byId(id)?.name ?: id
-        }
-        Row(
-            Modifier.fillMaxWidth().clickable { nav.navigate("presets/${engine.id}/$profile?service=${s.id}") }.padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(s.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.4f))
-            Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2,
-                modifier = Modifier.weight(0.6f))
+}
+
+/** Results of the last check, only of the services whose feature is on. */
+private fun shownServices(vm: MainViewModel): Map<String, Int> {
+    val prefs = vm.prefs
+    return prefs.serviceStatus.filterKeys { id ->
+        when (id) {
+            ServiceCheck.WHATSAPP -> prefs.metaFix
+            ServiceCheck.TELEGRAM -> prefs.tgws
+            ServiceCheck.GEMINI -> prefs.proxy
+            else -> true
         }
     }
 }
 
-/** Last check of every service ("YouTube ✓ · Instagram ✗"); a failing one leads to auto selection. */
+@Composable
+private fun serviceTitle(id: String): String = when (id) {
+    ServiceCheck.WHATSAPP -> "WhatsApp"
+    ServiceCheck.TELEGRAM -> "Telegram"
+    ServiceCheck.GEMINI -> "Gemini"
+    else -> Targets.groups.firstOrNull { it.id == id }?.let { shortGroupTitle(stringResource(it.title)) } ?: id
+}
+
+/** Last check of every service as coloured chips; a tap shows what failed and what to do. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ServiceStatusCard(vm: MainViewModel, nav: NavHostController, version: Int) {
     val checking by vm.checkingServices.collectAsState()
-    val status = remember(version) { vm.prefs.serviceStatus }
+    val shown = remember(version) { shownServices(vm) }
+    val failed = remember(version) { vm.prefs.serviceFailed }
     val time = remember(version) { vm.prefs.serviceStatusTime }
+    var open by remember { mutableStateOf<String?>(null) }
     SectionCard(title = stringResource(R.string.services_title)) {
-        if (status.isEmpty()) {
+        if (shown.isEmpty()) {
             Hint(stringResource(R.string.services_never))
         } else {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ServiceCheck.GROUPS.forEach { id ->
-                    val rate = status[id] ?: return@forEach
-                    val group = Targets.groups.firstOrNull { it.id == id } ?: return@forEach
-                    val mark = when {
-                        rate >= 100 -> "✓"
-                        rate <= 0 -> "✗"
-                        else -> "~"
+                (ServiceCheck.GROUPS + ServiceCheck.EXTRA).forEach { id ->
+                    val rate = shown[id] ?: return@forEach
+                    val color = when {
+                        rate >= 100 -> StatusColors.ok
+                        rate <= 0 -> StatusColors.bad
+                        else -> StatusColors.warn
                     }
                     AssistChip(
-                        onClick = {
-                            if (rate < 100) {
-                                vm.prefs.autoGroups = setOf(id)
-                                nav.switchTab("auto")
-                            }
-                        },
-                        label = { Text("$mark ${shortGroupTitle(stringResource(group.title))}") },
+                        onClick = { open = id },
+                        label = { Text(serviceTitle(id)) },
+                        leadingIcon = { Box(Modifier.size(10.dp).background(color, CircleShape)) },
                     )
                 }
             }
             if (time > 0) Hint(stringResource(R.string.services_time, DateUtils.getRelativeTimeSpanString(time).toString()))
-            if (status.values.any { it < 100 }) Hint(stringResource(R.string.services_tap_hint))
+            Hint(stringResource(R.string.services_tap_hint))
         }
         OutlinedButton(onClick = { vm.checkServices() }, enabled = !checking) {
             Text(stringResource(if (checking) R.string.services_checking else R.string.services_check))
         }
     }
+
+    val id = open ?: return
+    val rate = shown[id] ?: 0
+    val bad = failed[id].orEmpty()
+    val extra = id in ServiceCheck.EXTRA
+    AlertDialog(
+        onDismissRequest = { open = null },
+        title = { Text(serviceTitle(id)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    when {
+                        rate >= 100 -> stringResource(R.string.service_dialog_ok)
+                        bad.isNotEmpty() -> stringResource(R.string.service_dialog_failed, bad.joinToString("\n"))
+                        else -> stringResource(R.string.service_dialog_down)
+                    },
+                )
+                when (id) {
+                    ServiceCheck.WHATSAPP -> Hint(stringResource(R.string.service_whatsapp_hint))
+                    ServiceCheck.TELEGRAM -> Hint(stringResource(R.string.service_telegram_hint))
+                    ServiceCheck.GEMINI -> Hint(stringResource(R.string.service_gemini_hint, vm.prefs.proxyCountry.ifBlank { "?" }))
+                    else -> if (rate < 100) Hint(stringResource(R.string.service_pick_hint))
+                }
+            }
+        },
+        confirmButton = {
+            when {
+                id == ServiceCheck.TELEGRAM -> TextButton(onClick = { open = null; nav.navigate("telegram") }) {
+                    Text(stringResource(R.string.settings))
+                }
+                id == ServiceCheck.GEMINI -> TextButton(onClick = { open = null; nav.navigate("proxy") }) {
+                    Text(stringResource(R.string.settings))
+                }
+                !extra && rate < 100 -> TextButton(onClick = {
+                    open = null
+                    vm.prefs.autoGroups = setOf(id)
+                    nav.switchTab("auto")
+                }) { Text(stringResource(R.string.service_dialog_pick)) }
+                else -> TextButton(onClick = { open = null }) { Text(stringResource(R.string.close)) }
+            }
+        },
+        dismissButton = if (id == ServiceCheck.TELEGRAM || id == ServiceCheck.GEMINI || (!extra && rate < 100)) {
+            { TextButton(onClick = { open = null }) { Text(stringResource(R.string.close)) } }
+        } else null,
+    )
 }
 
 /** "Instagram (app hosts)" -> "Instagram" */

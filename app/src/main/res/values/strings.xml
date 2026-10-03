@@ -269,7 +269,7 @@
     <string name="services_title">Services</string>
     <string name="services_never">Not checked yet.</string>
     <string name="services_time">Checked %1$s</string>
-    <string name="services_tap_hint">Tap a service that does not work to select a strategy for it.</string>
+    <string name="services_tap_hint">Tap a service to see what did not open and what to do.</string>
     <string name="services_check">Check now</string>
     <string name="services_checking">Checking…</string>
     <string name="auto_target">What to select for</string>
@@ -374,4 +374,30 @@
     <string name="meta_fix">WhatsApp: blocked addresses</string>
     <string name="meta_fix_hint">WhatsApp chat servers are blocked by address, not only by name. WhatsApp connections are sent to a WhatsApp server that is not blocked (checked on every network). Instagram and Facebook are not touched.</string>
     <string name="meta_fix_on">On, through %s</string>
+    <!-- home screen -->
+    <string name="state_partial">The bypass works, but not every service opened: tap a service below</string>
+    <string name="profile_of">Network profile: %s</string>
+    <string name="profile_summary">Engine %1$s · strategy: %2$s</string>
+    <string name="profile_open">Profile and strategies</string>
+    <string name="health_title">Background site check</string>
+    <string name="last_check_failed">Did not open: %s</string>
+    <string name="health_hint">The sites to check are set in auto selection. When fewer than half open, Manka selects a strategy by itself (the "Background check" setting).</string>
+    <string name="proxy_home_gemini">Gemini through your server</string>
+    <string name="proxy_home_whole">Whole apps through your server</string>
+    <string name="proxy_home_list">Listed addresses through the server (%d)</string>
+    <string name="service_dialog_ok">Everything opened.</string>
+    <string name="service_dialog_failed">Did not open:\n%s</string>
+    <string name="service_dialog_down">Does not work.</string>
+    <string name="service_pick_hint">You can select an own strategy for this service, it does not touch other sites.</string>
+    <string name="service_dialog_pick">Select a strategy</string>
+    <string name="service_whatsapp_hint">WhatsApp is checked the way it connects: through an unblocked WhatsApp address (the "WhatsApp: blocked addresses" setting) and the bypass.</string>
+    <string name="service_telegram_hint">Telegram works through TG WS Proxy. Check: Telegram\'s direct address or at least one Cloudflare domain answers.</string>
+    <string name="service_gemini_hint">Gemini works through your server. Check: Gemini answers and the server\'s exit is not Russian (now: %s).</string>
+    <string name="close">Close</string>
+    <!-- auto selection, simple mode -->
+    <string name="auto_simple_title">Selection for network: %s</string>
+    <string name="auto_simple_summary">Selecting: %1$s · engine: %2$s · mode: %3$s</string>
+    <string name="auto_simple_sites"> · site sets to check: %d</string>
+    <string name="auto_simple_more">Advanced settings</string>
+    <string name="auto_simple_hide">Hide settings</string>
 </resources>

@@ -39,6 +39,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -87,6 +88,7 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
     var byeByeDpi by remember { mutableStateOf(prefs.autoByeByeDpi) }
     var requests by remember { mutableStateOf(prefs.autoRequests) }
     var loadingSuite by remember { mutableStateOf(false) }
+    var advanced by rememberSaveable { mutableStateOf(false) }
     // null = main strategy, a service id, or ALL_SERVICES
     var target by remember { mutableStateOf<String?>(null) }
     val queue by vm.autoSelector.queue.collectAsState()
@@ -170,7 +172,39 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
                 item { QueueCard(queue, running = queue.active, onNew = { vm.autoSelector.resetQueue(); vm.autoSelector.reset() }) }
             }
             if (!state.running && state.phase != Phase.DONE && state.phase != Phase.CANCELLED) {
+                // simple mode: one button and what it will do; the details are folded below
                 item {
+                    SectionCard(title = stringResource(R.string.auto_simple_title, profileTitle(vm, profile))) {
+                        val what = when (target) {
+                            null -> stringResource(R.string.auto_target_main)
+                            ALL_SERVICES -> stringResource(R.string.auto_target_all_services)
+                            else -> Services.byId(target)?.title ?: target!!
+                        }
+                        val sites = if (perService) "" else stringResource(
+                            R.string.auto_simple_sites,
+                            groups.size + Targets.parseCustom(custom).size,
+                        )
+                        Text(
+                            stringResource(
+                                R.string.auto_simple_summary,
+                                what,
+                                engine?.title ?: stringResource(R.string.auto_all_engines),
+                                stringResource(if (full) R.string.auto_full else R.string.auto_quick),
+                            ) + sites,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Button(
+                            onClick = { start() },
+                            enabled = status.usable && !busy && !loadingSuite,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.auto_start)) }
+                        Hint(stringResource(R.string.auto_disclaimer))
+                        TextButton(onClick = { advanced = !advanced }) {
+                            Text(stringResource(if (advanced) R.string.auto_simple_hide else R.string.auto_simple_more))
+                        }
+                    }
+                }
+                if (advanced) item {
                     SectionCard(title = stringResource(R.string.auto_target)) {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(selected = target == null, onClick = { pickTarget(null) }, label = { Text(stringResource(R.string.auto_target_main)) })
@@ -186,7 +220,7 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
                         Hint(stringResource(if (target == null) R.string.auto_target_main_hint else R.string.auto_target_service_hint))
                     }
                 }
-                item {
+                if (advanced) item {
                     SectionCard(title = stringResource(R.string.engine)) {
                         val options = if (perService) listOf<Engine?>(Engine.ZAPRET2, Engine.ZAPRET) else Engine.entries + listOf<Engine?>(null)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -203,7 +237,7 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
                         Text(stringResource(R.string.auto_for_net, profileTitle(vm, profile)), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                if (!perService) item {
+                if (advanced && !perService) item {
                     SectionCard(title = stringResource(R.string.auto_sites)) {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Targets.groups.forEach { g ->
@@ -229,7 +263,7 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
                         )
                     }
                 }
-                item {
+                if (advanced) item {
                     SectionCard(title = stringResource(R.string.auto_mode)) {
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                             SegmentedButton(
@@ -268,13 +302,12 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
                         }
                     }
                 }
-                item {
+                if (advanced) item {
                     Button(
                         onClick = { start() },
                         enabled = status.usable && !busy && !loadingSuite,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.auto_start)) }
-                    Hint(stringResource(R.string.auto_disclaimer))
                 }
             } else {
                 item { ProgressCard(state, onStop = { vm.autoSelector.cancel() }, onNew = { vm.autoSelector.reset() }) }
