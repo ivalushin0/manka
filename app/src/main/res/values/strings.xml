@@ -385,6 +385,10 @@
     <string name="proxy_home_gemini">Gemini through your server</string>
     <string name="proxy_home_whole">Whole apps through your server</string>
     <string name="proxy_home_list">Listed addresses through the server (%d)</string>
+    <plurals name="proxy_home_gemini_plus">
+        <item quantity="one">Gemini and %d more address through your server</item>
+        <item quantity="other">Gemini and %d more addresses through your server</item>
+    </plurals>
     <string name="service_dialog_ok">Everything opened.</string>
     <string name="service_dialog_failed">Did not open:\n%s</string>
     <string name="service_dialog_down">Does not work.</string>

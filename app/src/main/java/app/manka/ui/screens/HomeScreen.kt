@@ -56,6 +56,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -280,6 +281,9 @@ private fun proxyHomeTitle(vm: MainViewModel): String {
     return when {
         prefs.proxyWholeApps -> stringResource(R.string.proxy_home_whole) + country
         domains.toSet() == gemini.toSet() -> stringResource(R.string.proxy_home_gemini) + country
+        domains.containsAll(gemini) -> (domains.size - gemini.size).let {
+            pluralStringResource(R.plurals.proxy_home_gemini_plus, it, it)
+        } + country
         else -> stringResource(R.string.proxy_home_list, domains.size) + country
     }
 }

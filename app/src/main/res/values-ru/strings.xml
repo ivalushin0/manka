@@ -383,6 +383,12 @@
     <string name="proxy_home_gemini">Gemini через свой сервер</string>
     <string name="proxy_home_whole">Приложения целиком через свой сервер</string>
     <string name="proxy_home_list">Адреса из списка через сервер (%d)</string>
+    <plurals name="proxy_home_gemini_plus">
+        <item quantity="one">Gemini и ещё %d адрес через сервер</item>
+        <item quantity="few">Gemini и ещё %d адреса через сервер</item>
+        <item quantity="many">Gemini и ещё %d адресов через сервер</item>
+        <item quantity="other">Gemini и ещё %d адреса через сервер</item>
+    </plurals>
     <string name="service_dialog_ok">Всё открылось.</string>
     <string name="service_dialog_failed">Не открылись:\n%s</string>
     <string name="service_dialog_down">Не работает.</string>
