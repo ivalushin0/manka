@@ -112,10 +112,14 @@ object Module {
             fi
             rc=${'$'}?
             [ ${'$'}rc -eq 0 ] || exit ${'$'}rc
-            # the manager activates the update on reboot; run the new copy right away
+            # the manager activates the update on reboot; run the new copy right away. The staged
+            # copy is then dropped: it took 50 MB until a reboot, and a later live update would
+            # have been rolled back to it by that reboot
             if [ -d ${Paths.MODULE_UPDATE} ]; then
                 mkdir -p ${'$'}M
                 cp -af ${Paths.MODULE_UPDATE}/. ${'$'}M/
+                rm -rf ${Paths.MODULE_UPDATE}
+                rm -f ${'$'}M/update
             fi
             [ -f ${'$'}M/manka.sh ] || { echo "module files not found after install"; exit 4; }
             rm -f "${'$'}Z"
