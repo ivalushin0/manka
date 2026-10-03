@@ -17,18 +17,21 @@ object RootChecker {
         hasCurl ?: Root.exec("command -v curl >/dev/null 2>&1 && echo yes", 15).out.contains("yes").also { hasCurl = it }
 
     /** Same result shape as [SiteChecker.check]; all sites are checked in parallel in one root call. */
-    suspend fun check(urls: List<String>, requests: Int, timeoutSec: Int, socksPort: Int? = null): List<SiteResult> {
+    suspend fun check(
+        urls: List<String>, requests: Int, timeoutSec: Int, socksPort: Int? = null,
+        extraArgs: String = "", uid: Int = UID,
+    ): List<SiteResult> {
         if (urls.isEmpty()) return emptyList()
         val proxy = socksPort?.let { "--socks5 127.0.0.1:$it" }.orEmpty()
         val jobs = urls.mapIndexed { i, url ->
             // one line per request: index code seconds exit
             "( for n in \$(seq $requests); do " +
-                "r=\$(curl -s -o /dev/null $proxy -m $timeoutSec --connect-timeout $timeoutSec -A Mozilla/5.0 " +
+                "r=\$(curl -s -o /dev/null $proxy $extraArgs -m $timeoutSec --connect-timeout $timeoutSec -A Mozilla/5.0 " +
                 "-w '%{http_code} %{time_total}' ${Root.q(url)}); echo \"$i \$r \$?\"; done ) &"
         }
         val script = jobs.joinToString("\n") + "\nwait"
         // 3003 = inet: without it Android refuses the process any network access
-        val out = Root.exec("su $UID -G 3003 -c ${Root.q(script)}", (timeoutSec + 5L) * requests + 20).out
+        val out = Root.exec("su $uid -G 3003 -c ${Root.q(script)}", (timeoutSec + 5L) * requests + 20).out
         val lines = out.lines().mapNotNull { l ->
             val p = l.trim().split(' ')
             if (p.size < 4) null else p[0].toIntOrNull()?.let { it to p }

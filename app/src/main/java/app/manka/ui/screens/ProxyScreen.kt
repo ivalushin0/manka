@@ -140,7 +140,7 @@ fun ProxyScreen(vm: MainViewModel, nav: NavController) {
                     )
                     Hint(stringResource(R.string.proxy_domains_hint))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { domains = ProxyConfig.GEMINI_DOMAINS.joinToString("\n") }) {
+                        OutlinedButton(onClick = { domains = app.manka.core.NetLists.current(prefs).geminiDomains.joinToString("\n") }) {
                             Text(stringResource(R.string.proxy_domains_reset))
                         }
                         Button(

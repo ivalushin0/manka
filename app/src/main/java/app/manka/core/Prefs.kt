@@ -144,8 +144,16 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("proxy_whole_apps", false)
         set(v) = sp.edit { putBoolean("proxy_whole_apps", v) }
     var proxyDomains: String
-        get() = str("proxy_domains", ProxyConfig.GEMINI_DOMAINS.joinToString("\n"))
+        get() = str("proxy_domains", NetLists.current(this).geminiDomains.joinToString("\n"))
         set(v) = sp.edit { putString("proxy_domains", v) }
+
+    // ---- NetLists (addresses that change with the blocks)
+    var netLists: String
+        get() = str("net_lists", "")
+        set(v) = sp.edit { putString("net_lists", v) }
+    var netListsTime: Long
+        get() = sp.getLong("net_lists_time", 0)
+        set(v) = sp.edit { putLong("net_lists_time", v) }
 
     // ---- bypass
     var blockQuic: Boolean
@@ -247,6 +255,21 @@ class Prefs(context: Context) {
             if (k.isEmpty() || v == null) null else k to v
         }.toMap()
         set(v) = sp.edit { putString("service_status", v.entries.joinToString(";") { "${it.key}=${it.value}" }) }
+    /** Group id -> hosts that did not open in the last check. */
+    var serviceFailed: Map<String, List<String>>
+        get() = str("service_failed", "").split(';').mapNotNull { e ->
+            val k = e.substringBefore('=', "")
+            if (k.isEmpty()) null else k to e.substringAfter('=').split(',').filter { it.isNotBlank() }
+        }.toMap()
+        set(v) = sp.edit { putString("service_failed", v.entries.joinToString(";") { "${it.key}=${it.value.joinToString(",")}" }) }
+    /** Hosts of the background check (lastCheckRate) that did not open. */
+    var lastCheckFailed: List<String>
+        get() = str("last_check_failed", "").split(',').filter { it.isNotBlank() }
+        set(v) = sp.edit { putString("last_check_failed", v.joinToString(",")) }
+    /** Exit country of the proxy server, from the last check ("KZ"). */
+    var proxyCountry: String
+        get() = str("proxy_country", "")
+        set(v) = sp.edit { putString("proxy_country", v) }
     var serviceStatusTime: Long
         get() = sp.getLong("service_status_time", 0)
         set(v) = sp.edit { putLong("service_status_time", v) }
@@ -318,7 +341,7 @@ class Prefs(context: Context) {
     /** Device state and secrets that must not travel with a backup: install markers, update bookkeeping, the proxy key. */
     private fun backedUp(key: String) = !key.startsWith("kit_") && key !in setOf(
         "bundled_kits", "update_check", "module_update_pending", "store_check_time", "service_status", "service_status_time",
-        "last_check_time", "last_check_rate", "dns_v2", "proxy_key", "kits_compacted",
+        "last_check_time", "last_check_rate", "dns_v2", "proxy_key", "kits_compacted", "net_lists", "net_lists_time", "service_failed", "last_check_failed", "proxy_country",
     )
 
     private fun newSecret(): String {

@@ -131,6 +131,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 kitsImported = true
                 runCatching { store.compactKits() }
                 runCatching { store.importBundledKits() }
+                // addresses that change with the blocks, once a day (the worker does it too)
+                if (runCatching { app.manka.core.NetLists.refresh(prefs) }.getOrDefault(false)) apply()
             }
         }
     }
@@ -225,7 +227,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _checkingServices.value = true
         app.appScope.launch {
             try {
-                ServiceCheck.run(prefs, prefs.autoTimeoutSec)
+                ServiceCheck.run(app, prefs.autoTimeoutSec)
             } finally {
                 _checkingServices.value = false
             }

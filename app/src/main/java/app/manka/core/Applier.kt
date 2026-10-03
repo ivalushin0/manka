@@ -60,7 +60,7 @@ class Applier(
         // without --dc-ip every DC goes through the shared Cloudflare domains (often HTTP 503);
         // DC 2 and 4 answer directly on Telegram's web endpoint unless the user set their own address
         val userDcs = userIps.map { it.substringBefore(':') }.toSet()
-        (TGWS_DC_IPS.filter { it.substringBefore(':') !in userDcs } + userIps).forEach { out += listOf("--dc-ip", it) }
+        (NetLists.current(prefs).tgwsDcIps.filter { it.substringBefore(':') !in userDcs } + userIps).forEach { out += listOf("--dc-ip", it) }
         // providers drop a share of new connections to Telegram: fail over quickly and do not
         // abandon the direct path for an hour (the default) after a single lost connection
         val extra = Args.split(prefs.tgwsExtraArgs)
@@ -92,6 +92,9 @@ class Applier(
         kv("HOTSPOT", if (prefs.hotspot) 1 else 0)
         kv("META_FIX", if (prefs.metaFix) 1 else 0)
         kv("META_UIDS", "\"" + uidsOf(WHATSAPP).joinToString(" ") + "\"")
+        val net = NetLists.current(prefs)
+        kv("META_NETS", "\"" + net.metaNets.joinToString(" ") + "\"")
+        kv("META_EDGES", "\"" + net.metaEdges.joinToString(" ") + "\"")
         val dns = prefs.dnsServer.trim()
         val doh = DOH[dns]
         kv("DNS_MODE", if (doh != null) "doh" else if (IPV4.matches(dns)) "plain" else "system")
@@ -206,10 +209,6 @@ class Applier(
 
         /** Apps the Meta remap applies to (module META_UIDS): its edges serve WhatsApp only. */
         val WHATSAPP = setOf("com.whatsapp", "com.whatsapp.w4b")
-
-        /** Telegram's web WebSocket front, which serves DC 2 and 4 (checked: the others redirect). */
-        val TGWS_DC_IPS = listOf("2:149.154.167.220", "4:149.154.167.220")
-
         data class Doh(val plain: String, val urls: List<String>)
 
         /** DNS-over-HTTPS by IP address: no bootstrap DNS needed, the certificates cover the IPs. */

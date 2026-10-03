@@ -37,6 +37,24 @@ start_tgws() {
 	esac
 }
 
+# ok / fail: can the proxy reach Telegram now (its direct front, else the Cloudflare domains);
+# for the service status in the app
+tgws_probe() {
+	is_running tgws || { echo fail; return 0; }
+	if [ "$(cat "$RUN/tgws.direct" 2>/dev/null)" = 1 ]; then
+		for _ip in $(tgws_dc_ips); do
+			timeout 4 nc -z -w 3 "$_ip" 443 >/dev/null 2>&1 && { echo ok; return 0; }
+		done
+	fi
+	# a separate instance checks the Cloudflare domains of the running configuration
+	set --
+	while IFS= read -r _a || [ -n "$_a" ]; do
+		[ -n "$_a" ] && [ "$_a" != -q ] && set -- "$@" "$_a"
+	done < "$RUN/tgws.args"
+	_n=$(timeout 45 "$BIN/tg-ws-proxy" "$@" --host 127.0.0.1 --port 1451 --check 2>&1 | grep -c '\[OK')
+	if [ "${_n:-0}" -gt 0 ]; then echo ok; else echo fail; fi
+}
+
 # restarts the proxy when its direct addresses became (un)reachable
 tgws_check() {
 	[ "$TGWS" = 1 ] && is_running tgws || return 0

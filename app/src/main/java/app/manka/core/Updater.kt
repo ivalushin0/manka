@@ -28,6 +28,14 @@ object Updater {
 
     suspend fun check(): Info = json.decodeFromString(Info.serializer(), Http.text("$BASE/version.json"))
 
+    /**
+     * The full module (binaries of every CPU) of this app version, else of the latest build: the
+     * APK only carries the 64-bit ARM binaries.
+     */
+    suspend fun downloadModule(dest: File): File =
+        runCatching { Http.download("$BASE/Manka-module-${BuildConfig.VERSION_NAME}.zip", dest) }
+            .getOrElse { check().module?.let { Http.download("$BASE/$it", dest) } ?: throw it }
+
     /** Downloads the APK into the cache, reporting progress 0..1 (or -1 when the size is unknown). */
     suspend fun download(context: Context, info: Info, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
         val dest = File(context.cacheDir, "update/manka.apk")

@@ -90,7 +90,14 @@ object Module {
     /** Installs (or updates) the bundled module through the root manager and activates it without reboot. */
     suspend fun install(context: Context): Root.Result {
         val zip = File(context.cacheDir, "manka-module.zip")
-        context.assets.open("module.zip").use { input -> zip.outputStream().use { input.copyTo(it) } }
+        if (android.os.Build.SUPPORTED_ABIS.contains("arm64-v8a")) {
+            context.assets.open("module.zip").use { input -> zip.outputStream().use { input.copyTo(it) } }
+        } else {
+            // the APK carries the 64-bit binaries only: other phones get the full module of the release
+            runCatching { Updater.downloadModule(zip) }.getOrElse { e ->
+                return Root.Result(1, "cannot download the module for this CPU: ${e.message}")
+            }
+        }
         zip.setReadable(true, false)
         return Root.exec(
             """

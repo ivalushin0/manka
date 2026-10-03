@@ -148,7 +148,11 @@ jobs:
       - name: Bundle module and store snapshot
         run: |
           mkdir -p app/src/main/assets
+          # the APK carries the 64-bit ARM binaries only (nearly every phone); others download the
+          # full module of the release (Updater.downloadModule)
           cp build/manka-module.zip app/src/main/assets/module.zip
+          zip -q -d app/src/main/assets/module.zip 'libs/armeabi-v7a/*'
+          unzip -l app/src/main/assets/module.zip | tail -n1
           bash scripts/fetch-store.sh app/src/main/assets
 
       - uses: actions/setup-java@v4

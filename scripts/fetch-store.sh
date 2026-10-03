@@ -43,7 +43,7 @@ clean_kit() { # src.zip dst.zip
 				*) grep -qiF -- "$name" "$refs" || junk=1 ;;
 			esac
 		fi
-		[ $junk = 1 ] && rm -f "$f"
+		if [ $junk = 1 ]; then rm -f "$f"; fi
 	done
 	find "$tmp" -depth -type d -empty -delete
 	after=$(du -sk "$tmp" | cut -f1)

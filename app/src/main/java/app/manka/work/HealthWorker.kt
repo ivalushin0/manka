@@ -65,6 +65,11 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 status = Module.status()
             }
         }
+        // addresses that change with the blocks (Meta, Telegram, Gemini): once a day
+        if (runCatching { app.manka.core.NetLists.refresh(prefs) }.getOrDefault(false)) {
+            app.applier.apply()
+            status = Module.status()
+        }
         StatusNotifier.update(applicationContext, status)
         if (!prefs.enabled || app.autoSelector.busy) return Result.success()
 
@@ -77,7 +82,8 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val rate = ok * 100 / total
         prefs.lastCheckTime = System.currentTimeMillis()
         prefs.lastCheckRate = rate
-        val serviceRates = runCatching { ServiceCheck.run(prefs, prefs.autoTimeoutSec) }.getOrNull()
+        prefs.lastCheckFailed = sites.filter { it.ok < it.total }.map { it.url.substringAfter("://").substringBefore('/') }
+        val serviceRates = runCatching { ServiceCheck.run(app, prefs.autoTimeoutSec) }.getOrNull()
 
         val expected = prefs.baselineRate(profile).takeIf { it > 0 } ?: 100
         val degraded = rate < 50 && rate < expected - 25

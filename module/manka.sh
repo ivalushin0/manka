@@ -303,6 +303,7 @@ case "$1" in
 		cmd_status
 		;;
 	tgws-check) tgws_check ;;
+	tgws-probe) tgws_probe ;;
 	test-start) shift; cmd_test_start "$@" ;;
 	test-stop) cmd_test_stop ;;
 	_supervise) shift; supervise "$@" ;;

@@ -54,6 +54,9 @@ import (
 	_ "github.com/xtls/xray-core/transport/internet/headers/noop"
 
 	_ "github.com/xtls/xray-core/main/json"
+
+	// reads the config file given with -c
+	_ "github.com/xtls/xray-core/main/confloader/external"
 )
 EOF
 
