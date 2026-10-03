@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Checks the Xray configs built by ProxyConfigTest with the real Xray (Linux x86_64 build).
+# Checks the Xray configs built by ProxyConfigTest with the real Xray (Linux x86_64 build of it).
 #   scripts/validate-proxy.sh <dir with *.json>
-# Needs: gh (GH_TOKEN), unzip.
+# Needs: gh (GH_TOKEN), unzip, go.
 set -uo pipefail
 
 DIR=$(realpath "${1:-app/build/proxy}")
 WORK=$(realpath -m build/validate-proxy)
 rm -rf "$WORK"; mkdir -p "$WORK"
 tag=$(gh release view --repo XTLS/Xray-core --json tagName --jq .tagName)
-gh release download "$tag" --repo XTLS/Xray-core --pattern "Xray-linux-64.zip" --dir "$WORK"
-unzip -q "$WORK/Xray-linux-64.zip" xray -d "$WORK"
+# the same slim build the phone gets (scripts/build-xray.sh), the official one if it fails there too
+if ! { command -v go >/dev/null && WORK_DIR="$WORK" bash "$(dirname "$0")/build-xray.sh" "$tag" linux amd64 "$WORK/xray"; }; then
+	gh release download "$tag" --repo XTLS/Xray-core --pattern "Xray-linux-64.zip" --dir "$WORK"
+	unzip -q "$WORK/Xray-linux-64.zip" xray -d "$WORK"
+fi
 chmod +x "$WORK/xray"
 "$WORK/xray" version | head -n1
 

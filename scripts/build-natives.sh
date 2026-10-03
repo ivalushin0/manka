@@ -140,7 +140,15 @@ fetch_xray() {
 	rm -rf "$dir"; mkdir -p "$dir"
 	gh release download "$tag" --repo XTLS/Xray-core --pattern "Xray-android-arm64-v8a.zip" --dir "$dir"
 	unzip -o -q "$dir/Xray-android-arm64-v8a.zip" xray -d "$dir"
-	install -m 755 "$dir/xray" "$OUT/libs/arm64-v8a/xray"
+	echo "   official build: $(stat -c %s "$dir/xray") bytes"
+	# own build without the parts Manka does not use; the official one if that fails
+	if command -v go >/dev/null && WORK_DIR="$WORK" bash "$(dirname "$0")/build-xray.sh" "$tag" android arm64 "$dir/xray-slim"; then
+		install -m 755 "$dir/xray-slim" "$OUT/libs/arm64-v8a/xray"
+		echo "xray-build=slim" >> "$versions_file"
+	else
+		echo "   slim build failed, using the official one"
+		install -m 755 "$dir/xray" "$OUT/libs/arm64-v8a/xray"
+	fi
 }
 
 fetch_zapret bol-van/zapret "${ZAPRET_TAG:-}" nfqws

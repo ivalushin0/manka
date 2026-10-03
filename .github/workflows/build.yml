@@ -42,6 +42,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
       - name: Set up NDK
         id: ndk
         uses: nttld/setup-ndk@v1
@@ -100,6 +105,11 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
 
       - uses: actions/setup-java@v4
         with:
