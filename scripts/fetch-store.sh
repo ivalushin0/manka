@@ -22,6 +22,36 @@ SRC=$(find "$WORK" -maxdepth 1 -type d -name 'CDPIUI-Store-*' | head -n1)
 	cp "$f" "$STORE/index/$f"
 done)
 
+# The kits are made for the Windows CDPI UI: Windows programs and drivers, test tools, backups and
+# notes come along (one kit: a 10 MB backup of its host list). Presets name every file they use
+# literally, so a file no preset mentions is dropped; the same rule as KitCleaner in the app.
+clean_kit() { # src.zip dst.zip
+	local tmp="$WORK/kit-clean" refs="$WORK/kit-refs.txt" before after
+	rm -rf "$tmp"; mkdir -p "$tmp"
+	unzip -q "$1" -d "$tmp"
+	find "$tmp" -type f -iname '*.json' -exec cat {} + | tr 'A-Z' 'a-z' > "$refs"
+	before=$(du -sk "$tmp" | cut -f1)
+	find "$tmp" -type f | while IFS= read -r f; do
+		local rel=${f#"$tmp"/} name ext dirs junk=0
+		name=$(basename "$f"); ext=$(echo "${name##*.}" | tr 'A-Z' 'a-z')
+		dirs="/$(dirname "$rel" | tr 'A-Z' 'a-z')/"
+		case "$dirs" in */bak/*|*/backup/*|*/backups/*|*/utils/*|*"/test results/"*) junk=1 ;; esac
+		case "$ext" in sys|exe|dll|ps1|bat|cmd|vbs|lnk|reg|msi) junk=1 ;; esac
+		if [ $junk = 0 ]; then
+			case "$name" in
+				*.json|*.JSON|*.md|*.MD|LICENSE*|license*|README*|readme*) ;;
+				*) grep -qiF -- "$name" "$refs" || junk=1 ;;
+			esac
+		fi
+		[ $junk = 1 ] && rm -f "$f"
+	done
+	find "$tmp" -depth -type d -empty -delete
+	after=$(du -sk "$tmp" | cut -f1)
+	echo "   cleaned: ${before} KB -> ${after} KB"
+	rm -f "$2"
+	(cd "$tmp" && zip -qr9 "$2" .)
+}
+
 # config kits: latest release asset of every "configlist" item
 for init in "$SRC"/Configs/*/init.json; do
 	type=$(jq -r '.type // empty' "$init" 2>/dev/null || true)
@@ -40,7 +70,8 @@ for init in "$SRC"/Configs/*/init.json; do
 		echo "   no zip asset, skipped"
 		continue
 	fi
-	gh release download "$tag" --repo "$repo" --pattern "$asset" --output "$STORE/kits/$id.zip" --clobber
+	gh release download "$tag" --repo "$repo" --pattern "$asset" --output "$WORK/$id.zip" --clobber
+	clean_kit "$WORK/$id.zip" "$STORE/kits/$id.zip"
 	echo "$tag" > "$STORE/kits/$id.version"
 done
 

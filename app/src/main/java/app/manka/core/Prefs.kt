@@ -293,6 +293,10 @@ class Prefs(context: Context) {
     fun setKitVersion(storeId: String, version: String?) = sp.edit {
         if (version == null) remove("kit_$storeId") else putString("kit_$storeId", version)
     }
+    /** Kits of older versions were cleaned and the app's full copies dropped (StoreRepository.compactKits). */
+    var kitsCompacted: Boolean
+        get() = sp.getBoolean("kits_compacted", false)
+        set(v) = sp.edit { putBoolean("kits_compacted", v) }
     var bundledKitsImported: String
         get() = str("bundled_kits", "")
         set(v) = sp.edit { putString("bundled_kits", v) }
@@ -314,7 +318,7 @@ class Prefs(context: Context) {
     /** Device state and secrets that must not travel with a backup: install markers, update bookkeeping, the proxy key. */
     private fun backedUp(key: String) = !key.startsWith("kit_") && key !in setOf(
         "bundled_kits", "update_check", "module_update_pending", "store_check_time", "service_status", "service_status_time",
-        "last_check_time", "last_check_rate", "dns_v2", "proxy_key",
+        "last_check_time", "last_check_rate", "dns_v2", "proxy_key", "kits_compacted",
     )
 
     private fun newSecret(): String {

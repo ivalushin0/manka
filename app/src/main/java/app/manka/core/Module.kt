@@ -184,4 +184,7 @@ object Module {
     }
 
     suspend fun removeKit(kitId: String) = Root.exec("rm -rf ${Root.q("${Paths.KITS}/$kitId")}")
+
+    /** The module has its copy of the kit (the full one; the app keeps only descriptions). */
+    suspend fun hasKit(kitId: String) = Root.exec("[ -f ${Root.q("${Paths.KITS}/$kitId/manka-kit.json")} ]").ok
 }

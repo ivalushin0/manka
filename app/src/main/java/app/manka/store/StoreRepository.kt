@@ -173,12 +173,16 @@ class StoreRepository(
     private suspend fun installKit(storeId: String, name: String, version: String, open: () -> java.io.InputStream) {
         val dir = File(KitLoader.kitsDir(context), storeId)
         withContext(Dispatchers.IO) {
+            dir.deleteRecursively()
             open().use { Zip.extract(it, dir) }
             val meta = JsonObject(mapOf("name" to JsonPrimitive(name), "version" to JsonPrimitive(version)))
             File(dir, "manka-kit.json").writeText(meta.toString())
+            KitCleaner.clean(dir)
         }
         val r = Module.syncKit(storeId, dir)
         if (!r.ok) throw IOException(r.out.ifBlank { "root copy failed" })
+        // the module's copy is the only full one
+        withContext(Dispatchers.IO) { KitCleaner.keepMetaOnly(dir) }
         prefs.setKitVersion(storeId, version)
         presets.reloadStore()
     }
@@ -239,8 +243,44 @@ class StoreRepository(
         return updated
     }
 
-    /** Re-copies kits after the module (and /data/adb/manka) was reinstalled. */
+    /**
+     * After the module was (re)installed: a kit whose module copy is gone (/data/adb/manka was wiped)
+     * is installed again, from the APK snapshot or the store. The app itself keeps only descriptions.
+     */
     suspend fun resyncKits() {
-        KitLoader.kitsDir(context).listFiles()?.filter { it.isDirectory }?.forEach { Module.syncKit(it.name, it) }
+        compactKits()
+        var itemsById: Map<String, StoreItem>? = null
+        for (dir in KitLoader.kitsDir(context).listFiles()?.filter { it.isDirectory }.orEmpty()) {
+            val id = dir.name
+            if (Module.hasKit(id)) continue
+            val bundled = runCatching { context.assets.open("store/kits/$id.zip").close() }.isSuccess
+            runCatching {
+                if (bundled) {
+                    val version = runCatching {
+                        context.assets.open("store/kits/$id.version").bufferedReader().use { it.readText().trim() }
+                    }.getOrDefault("bundled")
+                    installKit(id, KitLoader.kitName(dir) ?: id, version) { context.assets.open("store/kits/$id.zip") }
+                } else {
+                    val known = itemsById ?: runCatching { items().associateBy { it.storeId } }.getOrDefault(emptyMap())
+                    itemsById = known
+                    known[id]?.let { install(it) }
+                }
+            }
+        }
+    }
+
+    /**
+     * Kits installed by older versions: full copies in the app and in the module, Windows files
+     * included. Cleans them once and leaves the app only the descriptions.
+     */
+    suspend fun compactKits() {
+        if (prefs.kitsCompacted) return
+        var ok = true
+        for (dir in KitLoader.kitsDir(context).listFiles()?.filter { it.isDirectory }.orEmpty()) {
+            if (!withContext(Dispatchers.IO) { KitCleaner.hasData(dir) }) continue
+            withContext(Dispatchers.IO) { KitCleaner.clean(dir) }
+            if (Module.syncKit(dir.name, dir).ok) withContext(Dispatchers.IO) { KitCleaner.keepMetaOnly(dir) } else ok = false
+        }
+        if (ok) prefs.kitsCompacted = true
     }
 }

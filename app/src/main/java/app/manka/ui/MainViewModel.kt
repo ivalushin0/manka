@@ -129,6 +129,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (_status.value.usable && !kitsImported) {
                 kitsImported = true
+                runCatching { store.compactKits() }
                 runCatching { store.importBundledKits() }
             }
         }
