@@ -46,3 +46,11 @@
 - Открылись: YouTube, youtubei, Discord, i.instagram, graph.facebook, TikTok, scoresaber, beatleader, x.com, Google. WhatsApp через 57.144.249.32 — 200; Telegram probe ok (через Cloudflare, прямые адреса и тут заблокированы); Gemini — KZ, 200.
 - Не открылись: сайт www.instagram.com (как и раньше на мобильной, приложению не мешает) и rutracker.org (быстрый сброс 0,6 с; 03.10 утром на мобильной открывался, на Wi-Fi сейчас 301 — нестабильно у оператора).
 - Telegram, WhatsApp, Instagram открылись и подключились. Wi-Fi возвращён.
+
+## 2026-10-12 — «половина интернета не работает» (погода Google, сайты в приложении Google)
+- Причина: собственная сборка Xray (с 0.1.0-42) не может резолвить имена (Go без /etc/resolv.conf на Android) — прямой путь приложений из прокси (Google app, Загрузки, Claude, часы) падал «lookup failed»; через сервер работало.
+- Исправление: в конфиг Xray свой DNS (DoH 8.8.8.8/1.1.1.1 по IP), freedom UseIPv4, sockopt.domainStrategy у сервера. Проверено правкой конфига на телефоне.
+- ya.ru не открывается из-за блок-листа модуля bindhosts (не Manka).
+
+### Не повторять
+- Xray на Android всегда с блоком "dns" в конфиге: системный резолвер Go там не работает.

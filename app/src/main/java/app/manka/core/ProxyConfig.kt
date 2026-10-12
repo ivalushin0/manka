@@ -67,9 +67,24 @@ object ProxyConfig {
      * The whole Xray config: redirected TCP of the chosen apps -> the server. With [only] the server
      * gets just these domains (and their subdomains), the rest goes out directly, through the bypass.
      */
+    /** The server's own address (if a name) is resolved through Xray's DNS too. */
+    private fun withResolver(out: JsonObject): JsonObject {
+        val stream = out["streamSettings"] as? JsonObject ?: JsonObject(emptyMap())
+        val sockopt = stream["sockopt"] as? JsonObject ?: JsonObject(emptyMap())
+        if ("domainStrategy" in sockopt) return out
+        val newStream = JsonObject(stream + ("sockopt" to JsonObject(sockopt + ("domainStrategy" to JsonPrimitive("UseIPv4")))))
+        return JsonObject(out + ("streamSettings" to newStream))
+    }
+
     fun build(server: Server, only: List<String>? = null, port: Int = PORT): String = buildJsonObject {
         // no access log: it would list every site the proxied apps open
         putJsonObject("log") { put("loglevel", "warning"); put("access", "none") }
+        // Xray's own resolver: Go cannot use Android's (no /etc/resolv.conf), the direct route and a
+        // server given by name failed with "lookup ... failed". DoH by IP, outside the bypass.
+        putJsonObject("dns") {
+            putJsonArray("servers") { add(JsonPrimitive("https+local://8.8.8.8/dns-query")); add(JsonPrimitive("https+local://1.1.1.1/dns-query")) }
+            put("queryStrategy", "UseIPv4")
+        }
         putJsonArray("inbounds") {
             add(buildJsonObject {
                 put("tag", "redir")
@@ -86,10 +101,11 @@ object ProxyConfig {
             })
         }
         putJsonArray("outbounds") {
-            add(server.outbound)
+            add(withResolver(server.outbound))
             if (only != null) add(buildJsonObject {
                 put("tag", "direct")
                 put("protocol", "freedom")
+                putJsonObject("settings") { put("domainStrategy", "UseIPv4") }
                 putJsonObject("streamSettings") { putJsonObject("sockopt") { put("mark", DIRECT_MARK) } }
             })
         }
