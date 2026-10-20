@@ -76,7 +76,10 @@ class HealthWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
         val profile = status.ownProfile
         val engine = prefs.engine(profile)
-        val targets = prefs.healthTargets.ifEmpty { Targets.groups.first { it.id == "youtube" }.urls }
+        // only sites the user chose: the DPI test suite is a list of random hosts, many of them dead,
+        // which made "the strategy stopped working" alarms out of an unchanged 70 %
+        val known = (Targets.groups.flatMap { it.urls } + Targets.parseCustom(prefs.customSites)).toSet()
+        val targets = prefs.healthTargets.filter { it in known }.ifEmpty { Targets.groups.first { it.id == "youtube" }.urls }
         val sites = Checks.sites(targets, 1, prefs.autoTimeoutSec)
         val ok = sites.sumOf { it.ok }
         val total = sites.sumOf { it.total }.coerceAtLeast(1)
