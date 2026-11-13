@@ -38,6 +38,15 @@ setup_proxy_rules() {
 
 proxy_sum() { echo "$(md5sum < "$DATA/proxy.json" 2>/dev/null)"; }
 
+# Xray holds its DoH/upstream connections of the previous network: until it reconnects, name
+# lookups of the proxied apps fail (seen for ~15 s after every Wi-Fi <-> mobile switch). Restarted
+# on a network change like the engine.
+restart_proxy() {
+	[ "$PROXY" = 1 ] && is_running proxy || return 0
+	stop_daemon proxy
+	start_proxy
+}
+
 stop_proxy() {
 	remove_proxy_rules
 	stop_daemon proxy

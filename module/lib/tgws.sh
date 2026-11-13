@@ -55,12 +55,24 @@ tgws_probe() {
 	if [ "${_n:-0}" -gt 0 ]; then echo ok; else echo fail; fi
 }
 
-# restarts the proxy when its direct addresses became (un)reachable
+# restarts the proxy when its set of direct addresses must change. A restart cuts every connection
+# of the app, so a probe result alone changes nothing on the same network: going "blocked" strips
+# the addresses once (with a 15 min cooldown against a flapping probe), and addresses that came back
+# are picked up on the next network change ("force", the connections break there anyway).
 tgws_check() {
+	_force=$1
 	[ "$TGWS" = 1 ] && is_running tgws || return 0
 	_d=$(tgws_direct)
 	[ "$_d" = "$(cat "$RUN/tgws.direct" 2>/dev/null)" ] && return 0
-	log "telegram direct addresses: $([ "$_d" = 1 ] && echo reachable || echo blocked)"
+	# reachable again: the running settings (Cloudflare only) still work, no restart for a probe
+	[ "$_d" != 0 ] && [ -z "$_force" ] && return 0
+	if [ -z "$_force" ]; then
+		_now=$(date +%s)
+		_last=$(cat "$RUN/tgws.time" 2>/dev/null)
+		[ $((_now - ${_last:-0})) -lt 900 ] && return 0
+	fi
+	log "telegram direct addresses: $([ "$_d" = 0 ] && echo blocked || echo reachable)"
 	stop_daemon tgws
 	start_tgws
+	date +%s > "$RUN/tgws.time"
 }

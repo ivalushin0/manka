@@ -94,6 +94,7 @@ for _lib in "$MODDIR"/lib/*.sh; do . "$_lib"; done
 cmd_start() {
 	probe_caps
 	rm -f "$RUN/testing"
+	_oldkey=$(cat "$RUN/key" 2>/dev/null)
 	if [ "$ENABLED" = 1 ]; then
 		setup_dns
 		select_profile "$(current_key)"
@@ -105,6 +106,12 @@ cmd_start() {
 		fi
 		setup_guard
 		setup_meta
+		# the network changed and netwatch missed it: the picks of the old network (Telegram's direct
+		# front, Xray's connections) are stale here too
+		if [ -n "$_oldkey" ] && [ "$_oldkey" != "$KEY" ]; then
+			tgws_check force
+			restart_proxy
+		fi
 		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
 	else
 		stop_engine
@@ -140,9 +147,11 @@ cmd_net_apply() {
 	stop_engine
 	select_profile "$_k"
 	start_engine
-	# the reachable Meta edge and Telegram's direct addresses may differ on the new network
+	# the reachable Meta edge, Telegram's direct addresses and Xray's own connections belong to the
+	# old network
 	setup_meta
-	tgws_check
+	tgws_check force
+	restart_proxy
 }
 
 cmd_stop() {

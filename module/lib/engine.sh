@@ -123,7 +123,10 @@ engine_sig() {
 		cat "$PROFILES/$PROFILE.conf" "$PROFILE_ARGS" 2>/dev/null
 		# the app rewrites the lists on every apply: their content counts, not their time
 		find "$DATA/lists" -type f -exec md5sum {} + 2>/dev/null | sort
-		ls -lR "$DATA/kits" "$FILES" 2>/dev/null
+		# content, not `ls -l`: its output carries the file dates in the current time zone, so after a
+		# reboot or a time zone change the signature did not match and the engine (with every
+		# connection of the apps) was restarted for nothing
+		find "$DATA/kits" "$FILES" -type f -exec md5sum {} + 2>/dev/null | sort
 	} | md5sum
 }
 
