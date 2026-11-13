@@ -171,7 +171,10 @@ fun AutoSelectScreen(vm: MainViewModel, nav: NavHostController) {
             if (queue.services.isNotEmpty()) {
                 item { QueueCard(queue, running = queue.active, onNew = { vm.autoSelector.resetQueue(); vm.autoSelector.reset() }) }
             }
-            if (!state.running && state.phase != Phase.DONE && state.phase != Phase.CANCELLED) {
+            // the results (and the error of a failed run) stay on screen until the user starts over
+            val setup = !state.running && state.phase != Phase.DONE && state.phase != Phase.CANCELLED &&
+                state.phase != Phase.ERROR
+            if (setup) {
                 // simple mode: one button and what it will do; the details are folded below
                 item {
                     SectionCard(title = stringResource(R.string.auto_simple_title, profileTitle(vm, profile))) {

@@ -133,7 +133,7 @@
     <string name="auto_start">Start</string>
     <string name="auto_stop">Stop</string>
     <string name="auto_new">New selection</string>
-    <string name="auto_disclaimer">Don\'t switch networks or VPN during the test.</string>
+    <string name="auto_disclaimer">Don\'t switch networks or VPN during the test: the bypass is off while the strategies are tested, so other apps cannot open blocked sites for a few minutes.</string>
     <string name="auto_no_targets">Choose at least one group or add your sites</string>
     <string name="auto_phase_baseline">Checking sites without bypass…</string>
     <string name="auto_phase_testing">Testing strategy %1$d of %2$d</string>

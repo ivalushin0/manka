@@ -47,11 +47,13 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
     var dcIps by remember { mutableStateOf(prefs.tgwsDcIps) }
     var extra by remember { mutableStateOf(prefs.tgwsExtraArgs) }
 
+    /** Saves the settings and applies them: the module restarts the proxy only when its arguments
+     * really changed (a restart cuts every connection of Telegram). */
     fun save() {
         port.toIntOrNull()?.takeIf { it in 1024..65535 }?.let { prefs.tgwsPort = it }
         prefs.tgwsDcIps = dcIps.trim()
         prefs.tgwsExtraArgs = extra.trim()
-        vm.op { vm.app.applier.writeConfig(); app.manka.core.Module.restartTgws() }
+        vm.apply()
     }
 
     ScreenScaffold(title = stringResource(R.string.telegram), onBack = onBack, busy = busy) { pad ->

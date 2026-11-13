@@ -116,9 +116,18 @@ class AutoSelector(
     val state: StateFlow<AutoState> = _state
     private var job: Job? = null
 
+    /** One launch at a time: a second tap before the state shows "running" started a parallel run. */
+    private val starting = java.util.concurrent.atomic.AtomicBoolean(false)
+
     fun start(request: AutoRequest) {
-        if (busy) return
-        job = scope.launch { run(request) }
+        if (busy || !starting.compareAndSet(false, true)) return
+        job = scope.launch {
+            try {
+                run(request)
+            } finally {
+                starting.set(false)
+            }
+        }
     }
 
     fun cancel() {

@@ -145,9 +145,9 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
             val servicesOk = shown.values.all { it >= 100 }
             val stateColor = when {
                 !prefs.enabled -> null
-                running && servicesOk -> StatusColors.ok
-                running || status.failed.isEmpty() -> StatusColors.warn
-                else -> StatusColors.bad
+                !running -> if (status.failed.isNotEmpty()) StatusColors.bad else StatusColors.warn
+                !servicesOk -> StatusColors.warn
+                else -> StatusColors.ok
             }
             SectionCard {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

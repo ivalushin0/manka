@@ -131,7 +131,7 @@
     <string name="auto_start">Начать подбор</string>
     <string name="auto_stop">Остановить</string>
     <string name="auto_new">Новый подбор</string>
-    <string name="auto_disclaimer">Не переключайте сеть и VPN во время проверки.</string>
+    <string name="auto_disclaimer">Не переключайте сеть и VPN во время проверки: обход на это время выключается, и остальные приложения теряют доступ к заблокированным сайтам.</string>
     <string name="auto_no_targets">Выберите хотя бы одну группу или добавьте свои сайты</string>
     <string name="auto_phase_baseline">Проверка сайтов без обхода…</string>
     <string name="auto_phase_testing">Проверка стратегии %1$d из %2$d</string>
