@@ -40,6 +40,9 @@ CIADPI=$WORK/byedpi/ciadpi
 fail=0
 check() { # engine file
 	local engine=$1 file=$2 n=0 bad=0
+	# nothing to check means the export did not happen: a cached unit test run writes no files, and
+	# "0/0 accepted" would let a broken strategy catalogue through
+	[ -s "$file" ] || { echo "::error::$file is empty — the unit test export did not run (gradle --no-build-cache)"; exit 1; }
 	while IFS= read -r line || [ -n "$line" ]; do
 		[ -z "$line" ] && continue
 		n=$((n + 1))

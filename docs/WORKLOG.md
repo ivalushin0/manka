@@ -113,3 +113,7 @@
 - Не запускать tg-ws-proxy от root: root в SYS_UIDS, обход его не трогает, и DPI режет TLS к Telegram-фронту и к
   CF-доменам — Telegram «еле коннектится», при этом `nc -z` и TCP-проверки показывают «всё ок».
 - Не судить о доступности Telegram-фронта по `nc -z`: TCP отвечает и там, где TLS/WS уже режется.
+- В CI нельзя отдавать `testReleaseUnitTest` из кэша Gradle: экспорт стратегий (`build/strategies`) и прокси-конфигов
+  (`build/proxy`) — побочный эффект тестов, и из кэша эти файлы не восстанавливаются. Прогон 16.11 упал на
+  «no configs in app/build/proxy», а `validate-strategies.sh` при пустой папке печатал «0/0 strategies accepted» и
+  молча проходил. Теперь задача запускается с `--no-build-cache`, а скрипт падает на пустом файле.
