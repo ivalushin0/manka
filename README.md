@@ -11,8 +11,9 @@ Manka объединяет возможности [CDPI UI](https://github.com/S
 - **Три движка обхода:** zapret2 (Lua-стратегии), zapret (nfqws) и ByeDPI (прозрачный прокси).
   Трафик перехватывается через iptables (NFQUEUE / REDIRECT), VPN-слот телефона остаётся свободным.
 - **TG WS Proxy** — локальный MTProto-прокси для Telegram (Rust-версия
-  [tg-ws-proxy-rs](https://github.com/valnesfjord/tg-ws-proxy-rs)). Запускается root-модулем,
-  работает в фоне и после перезагрузки. Экономичный режим без заранее открытых соединений.
+  [tg-ws-proxy-rs](https://github.com/valnesfjord/tg-ws-proxy-rs)). Запускается модулем от имени
+  shell-пользователя: под root обход его не трогает, и DPI режет TLS к фронту Telegram. Работает в
+  фоне и после перезагрузки. Экономичный режим без заранее открытых соединений.
 - **Автоподбор стратегий:** по кнопке и периодически в фоне. Если стратегия перестала работать,
   Manka сама подберёт новую (можно выключить в настройках). На время проверки основной движок
   выключается: тестовый движок обслуживает только трафик самой Manka, остальные приложения эти
@@ -51,7 +52,7 @@ Manka объединяет возможности [CDPI UI](https://github.com/S
 app (Kotlin, Compose)  ──su──>  /data/adb/modules/manka/manka.sh
                                  ├─ nfqws / nfqws2  <── iptables mangle NFQUEUE
                                  ├─ ciadpi -E        <── iptables nat REDIRECT
-                                 └─ tg-ws-proxy      127.0.0.1:1443
+                                 └─ tg-ws-proxy      127.0.0.1:1443 (uid 2000 — через обход)
 настройки: /data/adb/manka/{settings.conf,args/*.args,kits/,lists/}
 ```
 

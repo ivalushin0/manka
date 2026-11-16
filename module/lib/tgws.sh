@@ -1,15 +1,24 @@
 # Manka module: TG WS Proxy. Sourced by manka.sh (POSIX sh), uses its paths and settings.
 
-tgws_sum() { echo "$(md5sum < "$ARGS/tgws.args" 2>/dev/null) $TGWS_PORT"; }
+# The proxy runs as the shell user, not as root: root (SYS_UIDS) is kept out of the bypass, and
+# then DPI cuts the TLS of the proxy to Telegram's own front and to the Cloudflare domains — the
+# proxy retries, marks the address dead for a minute and Telegram barely connects. As uid 2000 its
+# traffic gets the strategy and both paths work. tgws-run.sh does the switch; the binary has to
+# live where that user can execute it (/data/adb is root-only).
+TGWS_UID=2000
+TGWS_RUNTIME=/data/local/tmp/manka
 
-# Telegram's direct front (the --dc-ip addresses) is blocked altogether on some networks; the proxy
-# would then lose its connect timeout on it again and again before falling back. The addresses are
-# checked (start, network change, every 30 min) and left out while unreachable: Cloudflare only.
+# The restart also covers an updated proxy binary: a module update replaces it.
+tgws_sum() {
+	echo "$(md5sum < "$ARGS/tgws.args" 2>/dev/null) $(md5sum < "$BIN/tg-ws-proxy" 2>/dev/null) $TGWS_PORT"
+}
+
 tgws_dc_ips() {
 	awk 'take { sub(/^[0-9]+:/, ""); print; take = 0; next } $0 == "--dc-ip" { take = 1 }' "$ARGS/tgws.args" 2>/dev/null | sort -u
 }
 
-# 1: a direct address answers, 0: none does, empty: none configured
+# 1: a direct address answers on TCP, 0: none does, empty: none configured. Only a hint for the
+# label: the TCP handshake is allowed even where the WebSocket to the front is cut.
 tgws_direct() {
 	_ips=$(tgws_dc_ips)
 	[ -n "$_ips" ] || return 0
@@ -21,58 +30,51 @@ tgws_direct() {
 	echo 0
 }
 
-start_tgws() {
-	_d=$(tgws_direct)
-	if [ "$_d" = 0 ]; then
-		awk 'skip { skip = 0; next } $0 == "--dc-ip" { skip = 1; next } { print }' "$ARGS/tgws.args" > "$RUN/tgws.args"
-	else
-		cp -f "$ARGS/tgws.args" "$RUN/tgws.args"
-	fi
-	echo "$_d" > "$RUN/tgws.direct"
-	start_daemon tgws "$BIN/tg-ws-proxy" "$RUN/tgws.args" --host 127.0.0.1 --port "$TGWS_PORT"
-	tgws_sum > "$RUN/tgws.sum"
-	case "$_d" in
-		0) log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT, direct addresses blocked here: Cloudflare only" ;;
-		*) log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT" ;;
-	esac
+# Copies the proxy where the shell user can execute it, only when it changed (a module update).
+tgws_prepare() {
+	mkdir -p "$TGWS_RUNTIME"
+	[ "$(md5sum < "$BIN/tg-ws-proxy" 2>/dev/null)" = "$(md5sum < "$TGWS_RUNTIME/tg-ws-proxy" 2>/dev/null)" ] && return 0
+	cp -f "$BIN/tg-ws-proxy" "$TGWS_RUNTIME/tg-ws-proxy" && chmod 0755 "$TGWS_RUNTIME/tg-ws-proxy"
 }
 
-# ok / fail: can the proxy reach Telegram now (its direct front, else the Cloudflare domains);
-# for the service status in the app
+start_tgws() {
+	tgws_prepare
+	# the direct addresses stay in the arguments: the proxy falls back to Cloudflare by itself
+	# (--ip-fail-cooldown), and removing them meant a restart that cut every connection
+	cp -f "$ARGS/tgws.args" "$RUN/tgws.args"
+	tgws_direct > "$RUN/tgws.direct"
+	start_daemon tgws "$MODDIR/tgws-run.sh" "$RUN/tgws.args" --host 127.0.0.1 --port "$TGWS_PORT"
+	tgws_sum > "$RUN/tgws.sum"
+	log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT as uid $TGWS_UID"
+}
+
+# ok / fail: can the proxy reach Telegram now; for the service status in the app
 tgws_probe() {
 	is_running tgws || { echo fail; return 0; }
-	if [ "$(cat "$RUN/tgws.direct" 2>/dev/null)" = 1 ]; then
-		for _ip in $(tgws_dc_ips); do
-			timeout 4 nc -z -w 3 "$_ip" 443 >/dev/null 2>&1 && { echo ok; return 0; }
-		done
-	fi
-	# a separate instance checks the Cloudflare domains of the running configuration
+	tgws_prepare
+	# a separate instance as the same user checks the Cloudflare domains of the running configuration
 	set --
 	while IFS= read -r _a || [ -n "$_a" ]; do
 		[ -n "$_a" ] && [ "$_a" != -q ] && set -- "$@" "$_a"
 	done < "$RUN/tgws.args"
-	_n=$(timeout 45 "$BIN/tg-ws-proxy" "$@" --host 127.0.0.1 --port 1451 --check 2>&1 | grep -c '\[OK')
-	if [ "${_n:-0}" -gt 0 ]; then echo ok; else echo fail; fi
+	CMD=
+	for _a in "$@"; do
+		_a=$(printf '%s' "$_a" | sed "s/'/'\\\\''/g")
+		CMD="$CMD '$_a'"
+	done
+	_n=$(timeout 45 su $TGWS_UID -G 3003 -c "exec $TGWS_RUNTIME/tg-ws-proxy$CMD --host 127.0.0.1 --port 1451 --check" 2>&1 | grep -c '\[OK')
+	[ "${_n:-0}" -gt 0 ] && { echo ok; return 0; }
+	# no Cloudflare domain answered: the direct front may still be the working path (--check does
+	# not cover it), so a TCP answer on it counts
+	for _ip in $(tgws_dc_ips); do
+		timeout 4 nc -z -w 3 "$_ip" 443 >/dev/null 2>&1 && { echo ok; return 0; }
+	done
+	echo fail
 }
 
-# restarts the proxy when its set of direct addresses must change. A restart cuts every connection
-# of the app, so a probe result alone changes nothing on the same network: going "blocked" strips
-# the addresses once (with a 15 min cooldown against a flapping probe), and addresses that came back
-# are picked up on the next network change ("force", the connections break there anyway).
+# No restarts for a probe result any more: they cut every connection of the app, and the proxy
+# handles a dead direct address itself. The probe only refreshes the label of the running settings.
 tgws_check() {
-	_force=$1
 	[ "$TGWS" = 1 ] && is_running tgws || return 0
-	_d=$(tgws_direct)
-	[ "$_d" = "$(cat "$RUN/tgws.direct" 2>/dev/null)" ] && return 0
-	# reachable again: the running settings (Cloudflare only) still work, no restart for a probe
-	[ "$_d" != 0 ] && [ -z "$_force" ] && return 0
-	if [ -z "$_force" ]; then
-		_now=$(date +%s)
-		_last=$(cat "$RUN/tgws.time" 2>/dev/null)
-		[ $((_now - ${_last:-0})) -lt 900 ] && return 0
-	fi
-	log "telegram direct addresses: $([ "$_d" = 0 ] && echo blocked || echo reachable)"
-	stop_daemon tgws
-	start_tgws
-	date +%s > "$RUN/tgws.time"
+	tgws_direct > "$RUN/tgws.direct"
 }
