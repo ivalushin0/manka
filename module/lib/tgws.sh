@@ -48,6 +48,15 @@ start_tgws() {
 	log "tg-ws-proxy started on 127.0.0.1:$TGWS_PORT as uid $TGWS_UID"
 }
 
+# The proxy keeps its sockets of the previous network alive (they stay ESTABLISHED on the old
+# interface, the pool reuses them and every request dies), so it is restarted when the network
+# changes — the connections are broken there anyway. A probe result alone never restarts it.
+tgws_restart() {
+	stop_daemon tgws
+	[ "$TGWS" = 1 ] && start_tgws
+	rm -f "$RUN/tgws.failed"
+}
+
 # ok / fail: can the proxy reach Telegram now; for the service status in the app
 tgws_probe() {
 	is_running tgws || { echo fail; return 0; }
@@ -72,9 +81,27 @@ tgws_probe() {
 	echo fail
 }
 
-# No restarts for a probe result any more: they cut every connection of the app, and the proxy
-# handles a dead direct address itself. The probe only refreshes the label of the running settings.
+# Are the connections of the proxy on the current network? A mobile handover can change the address
+# without a route change netwatch would see; the pooled sockets then stay on the old interface and
+# every request dies. Judged only when the proxy has IPv4 sockets: an idle proxy has no opinion.
+tgws_net_ok() {
+	_src=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([^ ]*\).*/\1/p' | head -n1)
+	[ -n "$_src" ] || return 0
+	_p=$(cat "$RUN/tgws.pid" 2>/dev/null)
+	[ -n "$_p" ] || return 0
+	_socks=$(ss -tnp 2>/dev/null | grep "pid=$_p," | awk '$4 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:/ { print $4 }')
+	[ -n "$_socks" ] || return 0
+	echo "$_socks" | grep -q "^$_src:" && return 0
+	return 1
+}
+
+# No restart for a probe result (it cuts every connection), but a proxy whose sockets stayed on the
+# old network is useless: restarted, and the connections are broken there anyway.
 tgws_check() {
 	[ "$TGWS" = 1 ] && is_running tgws || return 0
 	tgws_direct > "$RUN/tgws.direct"
+	if ! tgws_net_ok; then
+		log "telegram: proxy sockets are on the old network, restarting"
+		tgws_restart
+	fi
 }

@@ -107,9 +107,9 @@ cmd_start() {
 		setup_guard
 		setup_meta
 		# the network changed and netwatch missed it: the picks of the old network (Telegram's direct
-		# front, Xray's connections) are stale here too
+		# front and its sockets, Xray's connections) are stale here too
 		if [ -n "$_oldkey" ] && [ "$_oldkey" != "$KEY" ]; then
-			tgws_check force
+			tgws_restart
 			restart_proxy
 		fi
 		start_daemon netwatch /system/bin/sh "" "$SELF" _netwatch
@@ -148,9 +148,9 @@ cmd_net_apply() {
 	select_profile "$_k"
 	start_engine
 	# the reachable Meta edge, Telegram's direct addresses and Xray's own connections belong to the
-	# old network
+	# old network; the proxy keeps its sockets of the old interface, so it is restarted as well
 	setup_meta
-	tgws_check force
+	tgws_restart
 	restart_proxy
 }
 
