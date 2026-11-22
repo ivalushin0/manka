@@ -61,6 +61,22 @@ app (Kotlin, Compose)  ──su──>  /data/adb/modules/manka/manka.sh
 - `service.sh` запускает всё при загрузке телефона.
 - Приложение пишет конфигурацию и вызывает скрипт; фоновая проверка — WorkManager.
 
+## Если Telegram тормозит
+
+Провайдер режет прямой фронт Telegram (`kws*.web.telegram.org`): сначала по имени в TLS, иногда и
+по адресу целиком. Manka обходит это подменой SNI (domain fronting), но при блокировке по адресу
+прокси уходит на публичные Cloudflare-прокси, а они медленные. Надёжный путь — свой Cloudflare
+Worker (бесплатного тарифа хватает):
+
+1. `dash.cloudflare.com` → **Workers & Pages** → **Create** → «Hello World!» → **Deploy**.
+2. **Edit code** → вставьте [`docs/cf-worker.js`](docs/cf-worker.js) → **Deploy**.
+3. Скопируйте адрес вида `random-symbols-1234.username.workers.dev`.
+4. В Manka: **Telegram** → «Дополнительные аргументы» →
+   `--cf-worker-domain random-symbols-1234.username.workers.dev` → «Сохранить и перезапустить».
+
+Worker открывает обычное TCP-соединение к DC Telegram, поэтому ни подмена SNI, ни публичные
+прокси больше не нужны.
+
 ## Сборка
 
 Всё собирается в GitHub Actions (`.github/workflows/build.yml`):
