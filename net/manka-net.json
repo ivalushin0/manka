@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "comment": "Addresses Manka needs that change with the blocks. Edit, raise version, push to main: phones fetch it once a day (core/NetLists.kt).",
   "meta_nets": [
     "31.13.24.0/21", "31.13.64.0/18", "157.240.0.0/16", "179.60.192.0/22", "185.60.216.0/22",
@@ -11,6 +11,7 @@
     "57.144.172.34", "57.144.249.33"
   ],
   "tgws_dc_ips": ["2:149.154.167.220", "4:149.154.167.220"],
+  "tgws_fronting": "sprinthost.ru",
   "gemini_domains": [
     "robinfrontend-pa.googleapis.com", "signaler-pa.googleapis.com", "subscriptionsfirstparty-pa.googleapis.com",
     "gemini.google.com", "bard.google.com", "generativelanguage.googleapis.com",

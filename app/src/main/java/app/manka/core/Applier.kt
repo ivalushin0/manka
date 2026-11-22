@@ -61,11 +61,22 @@ class Applier(
         // DC 2 and 4 answer directly on Telegram's web endpoint unless the user set their own address
         val userDcs = userIps.map { it.substringBefore(':') }.toSet()
         (NetLists.current(prefs).tgwsDcIps.filter { it.substringBefore(':') !in userDcs } + userIps).forEach { out += listOf("--dc-ip", it) }
-        // providers drop a share of new connections to Telegram: fail over quickly and do not
-        // abandon the direct path for an hour (the default) after a single lost connection
+        // The front's own name (kws*.web.telegram.org) is blocked by SNI on some networks; the
+        // direct connection then goes out under the SNI of an unblocked domain (domain fronting,
+        // the same trick as upstream tg-ws-proxy). Without it everything falls to the public
+        // Cloudflare proxies, which are slow and answer 404 for media.
+        NetLists.current(prefs).tgwsFronting.takeIf { it.isNotBlank() }
+            ?.let { out += listOf("--fronting-domain", it) }
+        // a repeated option is an error for the proxy, the user's own value wins. 8 s: the DPI
+        // delays the handshake, 3 s cut working connections; no raw TCP tier: its timeout put the
+        // IP into a cooldown and switched the working WebSocket path off.
         val extra = Args.split(prefs.tgwsExtraArgs)
-        // a repeated option is an error for the proxy, the user's own value wins
-        for ((k, v) in listOf("--ws-connect-timeout" to "3", "--ip-fail-cooldown" to "60")) {
+        for ((k, v) in listOf(
+            "--ws-connect-timeout" to "8",
+            "--ip-fail-cooldown" to "60",
+            "--pinned-upstream" to "ws,cfproxy",
+            "--pinned-media-upstream" to "ws,cfproxy",
+        )) {
             if (extra.none { it == k || it.startsWith("$k=") }) out += listOf(k, v)
         }
         out += extra
