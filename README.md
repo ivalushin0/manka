@@ -10,11 +10,13 @@ Manka объединяет возможности [CDPI UI](https://github.com/S
 
 - **Три движка обхода:** zapret2 (Lua-стратегии), zapret (nfqws) и ByeDPI (прозрачный прокси).
   Трафик перехватывается через iptables (NFQUEUE / REDIRECT), VPN-слот телефона остаётся свободным.
-- **TG WS Proxy** — локальный MTProto-прокси для Telegram (Rust-версия
-  [tg-ws-proxy-rs](https://github.com/valnesfjord/tg-ws-proxy-rs)). Запускается модулем от имени
-  shell-пользователя: под root обход его не трогает, и DPI режет TLS к фронту Telegram. Прямой
-  фронт идёт с подменой SNI (domain fronting), когда провайдер режет имя `kws*.web.telegram.org`.
-  Работает в фоне и после перезагрузки. Экономичный режим без заранее открытых соединений.
+- **TG WS Proxy** — локальный MTProto-прокси для Telegram: Go-ядро приложения
+  [TgWsProxy](https://github.com/Regstar2/tgwsproxy-core) (форк
+  [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy)), собрано как консольный бинарь
+  (`vendor/tgws`). Работает через публичные Cloudflare-прокси обычным `ws://` на порту 80 — на
+  сетях, где режут TLS/SNI и адрес фронта Telegram, это единственный рабочий путь. Запускается
+  модулем от имени shell-пользователя (его трафик проходит через обход; под root обход его не
+  трогает). Работает в фоне и после перезагрузки.
 - **Автоподбор стратегий:** по кнопке и периодически в фоне. Если стратегия перестала работать,
   Manka сама подберёт новую (можно выключить в настройках). На время проверки основной движок
   выключается: тестовый движок обслуживает только трафик самой Manka, остальные приложения эти
@@ -53,7 +55,7 @@ Manka объединяет возможности [CDPI UI](https://github.com/S
 app (Kotlin, Compose)  ──su──>  /data/adb/modules/manka/manka.sh
                                  ├─ nfqws / nfqws2  <── iptables mangle NFQUEUE
                                  ├─ ciadpi -E        <── iptables nat REDIRECT
-                                 └─ tg-ws-proxy      127.0.0.1:1443 (uid 2000 — через обход)
+                                 └─ tgwsproxy (Go)   127.0.0.1:1443 (uid 2000 — через обход)
 настройки: /data/adb/manka/{settings.conf,args/*.args,kits/,lists/}
 ```
 
@@ -61,21 +63,13 @@ app (Kotlin, Compose)  ──su──>  /data/adb/modules/manka/manka.sh
 - `service.sh` запускает всё при загрузке телефона.
 - Приложение пишет конфигурацию и вызывает скрипт; фоновая проверка — WorkManager.
 
-## Если Telegram тормозит
+## Как работает Telegram
 
-Провайдер режет прямой фронт Telegram (`kws*.web.telegram.org`): сначала по имени в TLS, иногда и
-по адресу целиком. Manka обходит это подменой SNI (domain fronting), но при блокировке по адресу
-прокси уходит на публичные Cloudflare-прокси, а они медленные. Надёжный путь — свой Cloudflare
-Worker (бесплатного тарифа хватает):
-
-1. `dash.cloudflare.com` → **Workers & Pages** → **Create** → «Hello World!» → **Deploy**.
-2. **Edit code** → вставьте [`docs/cf-worker.js`](docs/cf-worker.js) → **Deploy**.
-3. Скопируйте адрес вида `random-symbols-1234.username.workers.dev`.
-4. В Manka: **Telegram** → «Дополнительные аргументы» →
-   `--cf-worker-domain random-symbols-1234.username.workers.dev` → «Сохранить и перезапустить».
-
-Worker открывает обычное TCP-соединение к DC Telegram, поэтому ни подмена SNI, ни публичные
-прокси больше не нужны.
+Провайдер режет TLS и адрес фронта Telegram (`kws*.web.telegram.org`), поэтому прокси не ходит
+напрямую: Go-ядро (`vendor/tgws`) открывает WebSocket **по обычному `ws://` на порту 80** через
+публичные Cloudflare-прокси из `net/manka-net.json`, а Cloudflare открывает TCP к DC Telegram.
+Маршрут один — `cf_proxy_ws`; прямые адреса и TLS не используются. Список доменов обновляется из
+сети, без обновления приложения.
 
 ## Сборка
 

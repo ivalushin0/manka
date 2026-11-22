@@ -75,15 +75,16 @@ class CoreLogicTest {
     fun netLists() {
         assertTrue(NetLists.DEFAULT.complete)
         assertEquals(ProxyConfig.GEMINI_DOMAINS, NetLists.DEFAULT.geminiDomains)
-        assertEquals("sprinthost.ru", NetLists.DEFAULT.tgwsFronting)
+        assertEquals("pclead.co.uk", NetLists.DEFAULT.tgwsCfDomains.first())
         // malformed entries are dropped, an emptied list rejects the whole download
         val parsed = NetLists.parse(
-            """{"version":2,"meta_nets":["31.13.24.0/21","; rm -rf /"],"meta_edges":["57.144.249.32"],
-               "tgws_dc_ips":["2:149.154.167.220"],"tgws_fronting":"Bad Domain!","gemini_domains":["gemini.google.com","bad domain"]}""",
+            """{"version":3,"meta_nets":["31.13.24.0/21","; rm -rf /"],"meta_edges":["57.144.249.32"],
+               "tgws_dc_ips":["2:149.154.167.220"],"tgws_cf_domains":["good.example","Bad Domain!"],
+               "gemini_domains":["gemini.google.com","bad domain"]}""",
         )
         assertNotNull(parsed)
         assertEquals(listOf("31.13.24.0/21"), parsed!!.metaNets)
-        assertEquals("", parsed.tgwsFronting)
+        assertEquals(listOf("good.example"), parsed.tgwsCfDomains)
         assertEquals(listOf("gemini.google.com"), parsed.geminiDomains)
         assertNull(NetLists.parse("""{"version":2,"meta_nets":[],"meta_edges":["1.1.1.1"],"tgws_dc_ips":["2:1.1.1.1"],"gemini_domains":["a.b"]}"""))
         assertNull(NetLists.parse("not json"))

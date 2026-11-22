@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "comment": "Addresses Manka needs that change with the blocks. Edit, raise version, push to main: phones fetch it once a day (core/NetLists.kt).",
   "meta_nets": [
     "31.13.24.0/21", "31.13.64.0/18", "157.240.0.0/16", "179.60.192.0/22", "185.60.216.0/22",
@@ -11,7 +11,12 @@
     "57.144.172.34", "57.144.249.33"
   ],
   "tgws_dc_ips": ["2:149.154.167.220", "4:149.154.167.220"],
-  "tgws_fronting": "sprinthost.ru",
+  "tgws_cf_domains": [
+    "pclead.co.uk", "offshor.co.uk", "cakeisalie.co.uk", "noskomnadzor.co.uk", "lovetrue.co.uk",
+    "sorokdva.co.uk", "pyatdesyatdva.co.uk", "kartoshka.co.uk", "sorokodin.co.uk", "pyatdesyatodin.co.uk",
+    "notelega.co.uk", "ebally.co.uk", "nebally.co.uk", "havegreatday.co.uk", "pomogite.co.uk",
+    "fixtelega.co.uk", "sadnews.co.uk", "onedaychamp.co.uk", "stopblocking.co.uk", "nothingthere.co.uk"
+  ],
   "gemini_domains": [
     "robinfrontend-pa.googleapis.com", "signaler-pa.googleapis.com", "subscriptionsfirstparty-pa.googleapis.com",
     "gemini.google.com", "bard.google.com", "generativelanguage.googleapis.com",

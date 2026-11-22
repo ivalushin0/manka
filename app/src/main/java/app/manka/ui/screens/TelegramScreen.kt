@@ -44,15 +44,11 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
 
     var port by remember { mutableStateOf(prefs.tgwsPort.toString()) }
-    var dcIps by remember { mutableStateOf(prefs.tgwsDcIps) }
-    var extra by remember { mutableStateOf(prefs.tgwsExtraArgs) }
 
     /** Saves the settings and applies them: the module restarts the proxy only when its arguments
      * really changed (a restart cuts every connection of Telegram). */
     fun save() {
         port.toIntOrNull()?.takeIf { it in 1024..65535 }?.let { prefs.tgwsPort = it }
-        prefs.tgwsDcIps = dcIps.trim()
-        prefs.tgwsExtraArgs = extra.trim()
         vm.apply()
     }
 
@@ -81,43 +77,12 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                 Mono(telegramLink(vm))
             }
 
-            SectionCard(title = stringResource(R.string.tgws_battery)) {
-                Hint(stringResource(R.string.tgws_pool_hint))
-                val sizes = listOf(0, 1, 2, 4)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    sizes.forEachIndexed { i, s ->
-                        SegmentedButton(
-                            selected = prefs.tgwsPoolSize == s,
-                            onClick = { prefs.tgwsPoolSize = s; if (prefs.tgws) save() },
-                            shape = SegmentedButtonDefaults.itemShape(i, sizes.size),
-                        ) { Text(if (s == 0) stringResource(R.string.tgws_pool_eco) else s.toString()) }
-                    }
-                }
-            }
-
             SectionCard(title = stringResource(R.string.tgws_routing)) {
-                SwitchRow(
-                    title = stringResource(R.string.tgws_cf),
-                    subtitle = stringResource(R.string.tgws_cf_hint),
-                    checked = prefs.tgwsCloudflare,
-                    onChange = { prefs.tgwsCloudflare = it; if (prefs.tgws) save() },
-                )
                 OutlinedTextField(
                     value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) },
                     label = { Text(stringResource(R.string.tgws_port)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = dcIps, onValueChange = { dcIps = it },
-                    label = { Text(stringResource(R.string.tgws_dc_ips)) },
-                    placeholder = { Text("2:149.154.167.220, 4:149.154.167.220") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = extra, onValueChange = { extra = it },
-                    label = { Text(stringResource(R.string.tgws_extra)) },
-                    modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedButton(onClick = {
                     prefs.regenerateTgwsSecret()

@@ -181,3 +181,29 @@
 - Не проверять доступность Telegram-фронта без SNI: DPI режет именно по имени, тот же IP с другим SNI отвечает.
 - Не ставить таймаут WS 3 с: DPI задерживает handshake, прокси уходит на медленный CF и медиа отваливается.
 - Не позволять лестнице апстримов пробовать прямой TCP к DC: его таймаут сажает IP в кулдаун и выключает рабочий WS.
+
+## 2026-11-22 — Telegram: переезд на Go-ядро TgWsProxy (вариант B2)
+- Официальное приложение — `Regstar2/tg-ws-proxy-android` + `tgwsproxy-core` (Go, GPL-3.0), форк
+  `Flowseal/tg-ws-proxy`, а не Rust-порт. Его рабочая схема (из `ProxyPrefs.xml`): `cf_only`,
+  plaintext `ws://` на порту **80**, маршрут `cf_proxy_ws`, пул 4, кэш доменов; прямые адреса и TLS
+  выключены.
+- Rust-порт в этой схеме не работает: `cf-only` принимает клиентов и не открывает апстрим, список
+  доменов тянет синхронно с GitHub (старт задерживается на ~13 с). Воспроизведено дважды.
+- Спайк: их ядро собрано как статический CLI (cgo/JNA-мост вырезан), в `main()` добавлен режим
+  `--mtproto --secret --runtime '<tokens>'`, и главное — `net.DefaultResolver` направлен на dnsproxy
+  (`127.0.0.1:10853`): без cgo Go на Android не видит `/etc/resolv.conf` и падает в
+  `dns_resolution_failure`. Проверено на телефоне: `route connected ... actual_backend=cf_proxy_ws`,
+  транспорт `ws:80`, медиа-сессии (`signed_dc=-2 media=true`) идут.
+- Интеграция: `vendor/tgws` (+ `UPSTREAM.md` с патчами и коммитом `d288f65`), `scripts/build-tgws.sh`,
+  сборка в CI (`build-natives.sh` → `libs/*/tgwsproxy`), лицензия проекта — GPL-3.0.
+- Модуль: `tgws.sh` запускает `tgwsproxy --mtproto --secret --runtime`, читая `args/tgws.runtime` и
+  `args/tgws.secret`; проба — процесс + порт; перезапуск при смене сети сохранён.
+- Приложение: `Applier.tgwsRuntime()` собирает токены (карта DC, `cf_only`, `cfproxy_no_tls`, маршрут
+  `cf_proxy_ws`, кэш доменов из `net/manka-net.json` v3); на экране Telegram убраны пул, DC-адреса и
+  дополнительные аргументы.
+
+### Не повторять
+- Статическая Go-сборка на Android не резолвит имена: нужен свой `net.DefaultResolver` (dnsproxy),
+  иначе `lookup … on [::1]:53`.
+- Не тащить Rust-порт для Telegram: нет маршрутов, WARP и рабочего cf-only.
+- Порт 1443 занимает официальное приложение: перед тестами проверять, кто слушает (`ss -tlnp`).

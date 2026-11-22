@@ -17,12 +17,10 @@ data class NetLists(
     @SerialName("meta_edges") val metaEdges: List<String> = emptyList(),
     @SerialName("tgws_dc_ips") val tgwsDcIps: List<String> = emptyList(),
     /**
-     * Domain presented as the TLS SNI of the proxy's direct connections to Telegram's WebSocket
-     * front (`--fronting-domain`). The real SNI `kws*.web.telegram.org` is blocked by name on some
-     * networks, and then the proxy falls back to the public Cloudflare proxies, which is much
-     * slower; the front itself answers any SNI.
+     * Public Cloudflare proxy domains for Telegram (`kws{N}.<domain>`), the working route on
+     * networks that cut Telegram's own WebSocket front. Served over plaintext ws:// on port 80.
      */
-    @SerialName("tgws_fronting") val tgwsFronting: String = "",
+    @SerialName("tgws_cf_domains") val tgwsCfDomains: List<String> = emptyList(),
     @SerialName("gemini_domains") val geminiDomains: List<String> = emptyList(),
 ) {
     /** Only well-formed entries: they end up in shell settings and proxy configs. */
@@ -30,7 +28,7 @@ data class NetLists(
         metaNets = metaNets.filter { CIDR.matches(it) },
         metaEdges = metaEdges.filter { IP.matches(it) },
         tgwsDcIps = tgwsDcIps.filter { DC_IP.matches(it) },
-        tgwsFronting = tgwsFronting.trim().lowercase().takeIf { DOMAIN.matches(it) }.orEmpty(),
+        tgwsCfDomains = tgwsCfDomains.map { it.trim().lowercase() }.filter { DOMAIN.matches(it) },
         geminiDomains = geminiDomains.filter { DOMAIN.matches(it) },
     )
 
@@ -49,7 +47,7 @@ data class NetLists(
         private val json = Json { ignoreUnknownKeys = true }
 
         val DEFAULT = NetLists(
-            version = 2,
+            version = 3,
             metaNets = listOf(
                 "31.13.24.0/21", "31.13.64.0/18", "157.240.0.0/16", "179.60.192.0/22", "185.60.216.0/22",
                 "129.134.0.0/16", "163.70.128.0/17", "69.171.224.0/19", "66.220.144.0/20", "69.63.176.0/20",
@@ -60,8 +58,13 @@ data class NetLists(
                 "57.144.172.34", "57.144.249.33",
             ),
             tgwsDcIps = listOf("2:149.154.167.220", "4:149.154.167.220"),
-            // the WS front's own name is blocked by SNI here; the front serves any SNI
-            tgwsFronting = "sprinthost.ru",
+            // the public CF proxies the Go core opens its TCP tunnel through (kws{N}.<domain>)
+            tgwsCfDomains = listOf(
+                "pclead.co.uk", "offshor.co.uk", "cakeisalie.co.uk", "noskomnadzor.co.uk", "lovetrue.co.uk",
+                "sorokdva.co.uk", "pyatdesyatdva.co.uk", "kartoshka.co.uk", "sorokodin.co.uk", "pyatdesyatodin.co.uk",
+                "notelega.co.uk", "ebally.co.uk", "nebally.co.uk", "havegreatday.co.uk", "pomogite.co.uk",
+                "fixtelega.co.uk", "sadnews.co.uk", "onedaychamp.co.uk", "stopblocking.co.uk", "nothingthere.co.uk",
+            ),
             geminiDomains = ProxyConfig.GEMINI_DOMAINS,
         )
 

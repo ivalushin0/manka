@@ -52,39 +52,22 @@ class Applier(
         }.distinct().sorted()
     }
 
-    fun tgwsArgs(): List<String> {
-        val out = mutableListOf("--secret", prefs.tgwsSecret, "--pool-size", prefs.tgwsPoolSize.toString())
-        if (!prefs.debugLogs) out += "-q"
-        if (prefs.tgwsCloudflare) out += "--default-domains"
-        val userIps = prefs.tgwsDcIps.split(',', ' ', '\n').map { it.trim() }.filter { it.matches(Regex("""\d+:[0-9a-fA-F.:]+""")) }
-        // without --dc-ip every DC goes through the shared Cloudflare domains (often HTTP 503);
-        // DC 2 and 4 answer directly on Telegram's web endpoint unless the user set their own address
-        val userDcs = userIps.map { it.substringBefore(':') }.toSet()
-        (NetLists.current(prefs).tgwsDcIps.filter { it.substringBefore(':') !in userDcs } + userIps).forEach { out += listOf("--dc-ip", it) }
-        // The front's own name (kws*.web.telegram.org) is blocked by SNI on some networks; the
-        // direct connection then goes out under the SNI of an unblocked domain (domain fronting,
-        // the same trick as upstream tg-ws-proxy). Without it everything falls to the public
-        // Cloudflare proxies, which are slow and answer 404 for media.
-        NetLists.current(prefs).tgwsFronting.takeIf { it.isNotBlank() }
-            ?.let { out += listOf("--fronting-domain", it) }
-        // a repeated option is an error for the proxy, the user's own value wins. 8 s: the DPI
-        // delays the handshake, 3 s cut working connections; no raw TCP tier: its timeout put the
-        // IP into a cooldown and switched the working WebSocket path off. A Cloudflare Worker
-        // (--cf-worker-domain) stays usable; the MTProto tier only when a proxy is configured — the
-        // proxy refuses to start with a pinned tier that has nothing to use it with.
-        val extra = Args.split(prefs.tgwsExtraArgs)
-        val tiers = "ws,cfworker,cfproxy" +
-            if (extra.any { it == "--mtproto-proxy" || it.startsWith("--mtproto-proxy=") }) ",mtproto" else ""
-        for ((k, v) in listOf(
-            "--ws-connect-timeout" to "8",
-            "--ip-fail-cooldown" to "60",
-            "--pinned-upstream" to tiers,
-            "--pinned-media-upstream" to tiers,
-        )) {
-            if (extra.none { it == k || it.startsWith("$k=") }) out += listOf(k, v)
+    /**
+     * Runtime tokens of the Go proxy core (vendor/tgws), the engine of the TgWsProxy app: the DC
+     * map it opens TCP tunnels to, then Cloudflare-only routing over plaintext ws:// on port 80.
+     * On this network the ISP cuts Telegram's own WebSocket front by SNI and address, so the
+     * Cloudflare proxy tier is the working path; the TLS-based one and the direct front are off.
+     */
+    fun tgwsRuntime(): String {
+        val domains = NetLists.current(prefs).tgwsCfDomains.ifEmpty { NetLists.DEFAULT.tgwsCfDomains }
+        return buildString {
+            append("1:149.154.175.50,2:149.154.167.51,3:149.154.175.100,4:149.154.167.91,5:149.171.5,203:91.105.192.100")
+            append(",@connection_mode=cf_only,@cfproxy=1,@cfproxy_only=1,@cfproxy_no_tls=1")
+            append(",@route_order=cf_proxy_ws,@route_direct_ws=0,@route_worker_ws=0,@route_cf_proxy_ws=1")
+            append(",@route_awg_warp=0,@route_tcp_fallback=0,@preferred_route=cf_proxy_ws,@route_fallback=0")
+            append(",@auto_strategy=cf_preferred")
+            append(",@cf_cached_domains=").append(domains.joinToString("|"))
         }
-        out += extra
-        return out
     }
 
     private fun profileConf(key: String, cfg: EngineConfig) = buildString {
@@ -177,7 +160,8 @@ class Applier(
         presets.awaitLoaded()
         val files = linkedMapOf(
             "${Paths.DATA}/settings.conf" to tmp("settings.conf", settingsConf(appUids())),
-            "${Paths.ARGS}/tgws.args" to argsFile("tgws.args", tgwsArgs()),
+            "${Paths.ARGS}/tgws.runtime" to tmp("tgws.runtime", tgwsRuntime()),
+            "${Paths.ARGS}/tgws.secret" to tmp("tgws.secret", prefs.tgwsSecret),
         )
         for (s in Services.all) {
             files[Services.listPath(s.id)] = tmp("svc-${s.id}.txt", Services.listContent(s))
