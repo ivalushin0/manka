@@ -160,8 +160,22 @@
 - Позже в тот же день фронт стали резать выборочно: из 23 попыток WS прошли 3, остальные таймаут (даже с
   подменой SNI), публичные CF-домены отвечают reset/404. Поэтому в README добавлена инструкция со своим
   Cloudflare Worker (`docs/cf-worker.js`, режим `--cf-worker-domain`): Worker открывает TCP к DC, фронт и
-  публичные прокси не нужны. Лестница апстримов теперь `ws,cfworker,cfproxy,mtproto` — worker и MTProto-прокси
-  остаются рабочими, выброшен только прямой TCP к DC (его таймаут сажал IP в кулдаун).
+  публичные прокси не нужны. Лестница апстримов теперь `ws,cfworker,cfproxy` (с `mtproto`, если настроен
+  MTProto-прокси); выброшен только прямой TCP к DC (его таймаут сажал IP в кулдаун).
+- Воркер развёрнут в аккаунте пользователя через его браузер: `manka-tgws.ivalushin0.workers.dev`
+  (Workers & Pages → Hello World → Edit code → код из `docs/cf-worker.js` → Deploy). Подключён как
+  **дополнительный** путь: адрес записан в Telegram → «Дополнительные аргументы» (`tgws_extra`), текущая схема
+  (прямой фронт + публичный Cloudflare) не тронута; пин `ws,cfworker,cfproxy`.
+- Проверка «только через воркер» (`--pinned-upstream cfworker`): `DC2m pinned → CF Worker connected`, сессии идут;
+  часть DC (203, 4m) таймаутит — это уже участок Cloudflare→DC, не телефон.
+- Баг: пин с тиром `mtproto` без `--mtproto-proxy` роняет прокси (`invalid pinned upstream config`), причём
+  в цикле перезапусков. Теперь `mtproto` в пине появляется только если в дополнительных аргументах есть
+  `--mtproto-proxy`.
+
+### Не повторять
+- Не пинить `mtproto` в `--pinned-upstream` без настроенного `--mtproto-proxy`: прокси не стартует.
+- Не разворачивать воркер через `--cf-domain` (нужен свой домен) — для бесплатного аккаунта это
+  `--cf-worker-domain <name>.<account>.workers.dev`.
 
 ### Не повторять
 - Не проверять доступность Telegram-фронта без SNI: DPI режет именно по имени, тот же IP с другим SNI отвечает.
