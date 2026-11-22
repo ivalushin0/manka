@@ -151,10 +151,20 @@ fetch_xray() {
 	fi
 }
 
+# ------------------------------------------------------------------ tg-ws-proxy core (vendored Go)
+# The engine of the TgWsProxy app: Cloudflare proxy over plaintext ws:// on port 80 with an ordered
+# route policy (see vendor/tgws/UPSTREAM.md). Pure Go, static, no NDK.
+build_tgws_core() {
+	echo "== vendor/tgws (tg-ws-proxy core)"
+	echo "tgwsproxy=vendored-d288f65" >> "$versions_file"
+	bash "$(dirname "$0")/build-tgws.sh" "$OUT"
+}
+
 fetch_zapret bol-van/zapret "${ZAPRET_TAG:-}" nfqws
 fetch_zapret bol-van/zapret2 "${ZAPRET2_TAG:-}" nfqws2
 build_byedpi
 build_tgws
+build_tgws_core
 fetch_dnsproxy
 fetch_xray
 

@@ -105,8 +105,11 @@ Worker открывает обычное TCP-соединение к DC Telegram
 
 ## Лицензии
 
-Код Manka — MIT. Используемые компоненты:
+Manka распространяется под **GPL-3.0**: в модуль входит GPL-3.0-ядро
+[tgwsproxy](https://github.com/Regstar2/tgwsproxy-core) (см. `vendor/tgws/UPSTREAM.md`). Остальные
+компоненты — по своим лицензиям:
 [zapret](https://github.com/bol-van/zapret) и [zapret2](https://github.com/bol-van/zapret2) (MIT),
 [ByeDPI](https://github.com/hufrea/byedpi) (MIT),
-(https://github.com/AdguardTeam/dnsproxy) (Apache-2.0),
+[dnsproxy](https://github.com/AdguardTeam/dnsproxy) (Apache-2.0),
+[Xray-core](https://github.com/XTLS/Xray-core) (MPL-2.0),
 каталог [CDPIUI-Store](https://github.com/Storik4pro/CDPIUI-Store) и наборы пресетов — по лицензиям их авторов.
