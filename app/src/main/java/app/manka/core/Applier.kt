@@ -70,14 +70,16 @@ class Applier(
         // a repeated option is an error for the proxy, the user's own value wins. 8 s: the DPI
         // delays the handshake, 3 s cut working connections; no raw TCP tier: its timeout put the
         // IP into a cooldown and switched the working WebSocket path off. A Cloudflare Worker
-        // (--cf-worker-domain) and an upstream MTProto proxy stay usable, they are tried when the
-        // direct WebSocket and the public Cloudflare proxies fail.
+        // (--cf-worker-domain) stays usable; the MTProto tier only when a proxy is configured — the
+        // proxy refuses to start with a pinned tier that has nothing to use it with.
         val extra = Args.split(prefs.tgwsExtraArgs)
+        val tiers = "ws,cfworker,cfproxy" +
+            if (extra.any { it == "--mtproto-proxy" || it.startsWith("--mtproto-proxy=") }) ",mtproto" else ""
         for ((k, v) in listOf(
             "--ws-connect-timeout" to "8",
             "--ip-fail-cooldown" to "60",
-            "--pinned-upstream" to "ws,cfworker,cfproxy,mtproto",
-            "--pinned-media-upstream" to "ws,cfworker,cfproxy,mtproto",
+            "--pinned-upstream" to tiers,
+            "--pinned-media-upstream" to tiers,
         )) {
             if (extra.none { it == k || it.startsWith("$k=") }) out += listOf(k, v)
         }
