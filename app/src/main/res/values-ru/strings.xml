@@ -82,6 +82,18 @@
     <string name="tgws_extra">Дополнительные аргументы tg-ws-proxy</string>
     <string name="tgws_new_secret">Новый секрет</string>
     <string name="tgws_secret_hint">После смены секрета или порта снова нажмите «Подключить Telegram».</string>
+    <string name="tgws_status_on">Работает</string>
+    <string name="tgws_status_off">Остановлен</string>
+    <string name="tgws_check">Проверить</string>
+    <string name="tgws_checking">Проверяю…</string>
+    <string name="tgws_check_empty">Модуль не ответил. Проверьте root и модуль.</string>
+    <string name="tgws_copied">Скопировано</string>
+    <string name="tgws_params">Параметры подключения</string>
+    <string name="tgws_server">Сервер</string>
+    <string name="tgws_secret">Секрет</string>
+    <string name="tgws_show">Показать</string>
+    <string name="tgws_hide">Скрыть</string>
+    <string name="tgws_link">Ссылка</string>
 
     <!-- presets -->
     <string name="presets_title">Стратегии · %1$s</string>

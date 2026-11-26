@@ -61,10 +61,25 @@ start_tgws() {
 	log "tgwsproxy started on 127.0.0.1:$TGWS_PORT as uid $TGWS_UID"
 }
 
-# ok / fail: the process runs and the port is open. The core's own route health is in its log.
+# A listening port alone is not health: the core keeps its own CF domain pool and may have every
+# domain in cooldown while the module is green. Report the process and what its log says about routes.
 tgws_probe() {
-	is_running tgws || { echo fail; return 0; }
-	if ss -tln 2>/dev/null | grep -q ":$TGWS_PORT "; then echo ok; else echo fail; fi
+	is_running tgws || { echo "fail: process is not running"; return 0; }
+	if ! ss -tln 2>/dev/null | grep -q ":$TGWS_PORT "; then
+		echo "fail: port $TGWS_PORT is not listening"
+		return 0
+	fi
+	_p=$(cat "$RUN/tgws.pid" 2>/dev/null)
+	_up=0
+	if [ -n "$_p" ] && [ -d "/proc/$_p" ]; then
+		_up=$(( $(date +%s) - $(stat -c %Y "/proc/$_p" 2>/dev/null || date +%s) ))
+	fi
+	_ok=$(grep -c 'reason=connected' "$LOGDIR/tgws.log" 2>/dev/null)
+	_bad=$(grep -c 'reason=cfproxy_unavailable' "$LOGDIR/tgws.log" 2>/dev/null)
+	echo "ok: pid $_p, port $TGWS_PORT, uptime ${_up}s"
+	echo "routes: connected=${_ok:-0}, unavailable=${_bad:-0}"
+	_last=$(grep 'CF domain cooldown' "$LOGDIR/tgws.log" 2>/dev/null | tail -n 1)
+	[ -n "$_last" ] && echo "last cooldown: ${_last#*cooldown }"
 }
 
 # The proxy keeps its sockets of the previous network, so it is restarted when the network changes;
