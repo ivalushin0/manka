@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -114,7 +115,6 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                             }
                         },
                     ) { Text(stringResource(if (checking) R.string.tgws_checking else R.string.tgws_check)) }
-                    OutlinedButton(onClick = { save() }, enabled = !busy) { Text(stringResource(R.string.save_restart)) }
                 }
                 check?.let {
                     Surface(
@@ -130,22 +130,23 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                 KeyRow(stringResource(R.string.tgws_server)) { Mono("127.0.0.1") }
                 KeyRow(stringResource(R.string.tgws_port)) { Mono(prefs.tgwsPort.toString()) }
                 KeyRow(stringResource(R.string.tgws_secret)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Mono(
-                            if (showSecret) prefs.tgwsSecret else "•".repeat(16),
-                            Modifier.weight(1f),
-                        )
-                        OutlinedButton(onClick = { showSecret = !showSecret }) {
-                            Text(stringResource(if (showSecret) R.string.tgws_hide else R.string.tgws_show))
-                        }
-                        OutlinedButton(onClick = { copy(prefs.tgwsSecret) }) { Text(stringResource(R.string.copy)) }
+                    Mono(
+                        if (showSecret) prefs.tgwsSecret else "•".repeat(12),
+                        Modifier.fillMaxWidth(),
+                        maxLines = 1,
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                    TextButton(onClick = { showSecret = !showSecret }) {
+                        Text(stringResource(if (showSecret) R.string.tgws_hide else R.string.tgws_show))
                     }
+                    TextButton(onClick = { copy(prefs.tgwsSecret) }) { Text(stringResource(R.string.copy)) }
                 }
                 KeyRow(stringResource(R.string.tgws_link)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Mono(telegramLink(vm), Modifier.weight(1f), maxLines = 2)
-                        OutlinedButton(onClick = { copy(telegramLink(vm)) }) { Text(stringResource(R.string.copy)) }
-                    }
+                    Mono(telegramLink(vm), Modifier.fillMaxWidth(), maxLines = 2)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                    TextButton(onClick = { copy(telegramLink(vm)) }) { Text(stringResource(R.string.tgws_copy_link)) }
                 }
             }
 
@@ -156,10 +157,18 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedButton(onClick = {
-                    prefs.regenerateTgwsSecret()
-                    save()
-                }) { Text(stringResource(R.string.tgws_new_secret)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            prefs.regenerateTgwsSecret()
+                            save()
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.tgws_new_secret)) }
+                    OutlinedButton(onClick = { save() }, enabled = !busy, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.save_restart))
+                    }
+                }
                 Hint(stringResource(R.string.tgws_secret_hint))
             }
         }

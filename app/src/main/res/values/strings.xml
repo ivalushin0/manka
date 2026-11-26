@@ -96,6 +96,7 @@
     <string name="tgws_show">Show</string>
     <string name="tgws_hide">Hide</string>
     <string name="tgws_link">Link</string>
+    <string name="tgws_copy_link">Copy link</string>
 
     <!-- presets -->
     <string name="presets_title">Strategies · %1$s</string>

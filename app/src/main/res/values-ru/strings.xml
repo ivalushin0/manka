@@ -94,6 +94,7 @@
     <string name="tgws_show">Показать</string>
     <string name="tgws_hide">Скрыть</string>
     <string name="tgws_link">Ссылка</string>
+    <string name="tgws_copy_link">Копировать ссылку</string>
 
     <!-- presets -->
     <string name="presets_title">Стратегии · %1$s</string>
