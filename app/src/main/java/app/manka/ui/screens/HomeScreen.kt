@@ -8,8 +8,6 @@ import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,17 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -46,19 +41,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import app.manka.core.NetLists
 import app.manka.core.ProxyConfig
+import app.manka.ui.Banner
+import app.manka.ui.BannerKind
 import app.manka.ui.StatusColors
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.AssistChip
+import app.manka.ui.StatusPill
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import app.manka.R
@@ -73,9 +71,7 @@ import app.manka.ui.Hint
 import app.manka.ui.MainViewModel
 import app.manka.ui.ScreenScaffold
 import app.manka.ui.SectionCard
-import app.manka.ui.SwitchRow
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
     val status by vm.status.collectAsState()
@@ -90,6 +86,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
 
     ScreenScaffold(
         title = stringResource(R.string.app_name),
+        subtitle = stringResource(R.string.home_subtitle, profileTitle(vm, status.ownProfile)),
         busy = busy,
         actions = {
             IconButton(onClick = { vm.refresh() }) { Icon(Icons.Filled.Refresh, stringResource(R.string.refresh)) }
@@ -106,30 +103,26 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
 
             // ---- problems with root / module
             when {
-                !status.rootOk -> SectionCard(
+                !status.rootOk -> Banner(
+                    kind = BannerKind.Bad,
                     title = stringResource(R.string.no_root_title),
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ) {
-                    Text(stringResource(R.string.no_root_text))
-                    Button(onClick = { vm.refresh() }) { Text(stringResource(R.string.retry)) }
-                }
-                !status.installed -> SectionCard(
+                    text = stringResource(R.string.no_root_text),
+                ) { Button(onClick = { vm.refresh() }) { Text(stringResource(R.string.retry)) } }
+                !status.installed -> Banner(
+                    kind = BannerKind.Warn,
                     title = stringResource(R.string.module_missing_title),
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    text = stringResource(R.string.module_missing_text),
                 ) {
-                    Text(stringResource(R.string.module_missing_text))
                     Button(onClick = { vm.installModule() }, enabled = !busy && Module.hasBundledModule(context)) {
                         Text(stringResource(R.string.module_install))
                     }
                 }
-                status.pendingRemoval -> SectionCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
-                    Text(stringResource(R.string.module_removing))
-                }
-                status.disabled -> SectionCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
-                    Text(stringResource(R.string.module_disabled))
-                }
-                bundledVersion > status.versionCode -> SectionCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
-                    Text(stringResource(R.string.module_update_available))
+                status.pendingRemoval -> Banner(BannerKind.Bad, stringResource(R.string.module_removing))
+                status.disabled -> Banner(BannerKind.Bad, stringResource(R.string.module_disabled))
+                bundledVersion > status.versionCode -> Banner(
+                    kind = BannerKind.Warn,
+                    title = stringResource(R.string.module_update_available),
+                ) {
                     Button(onClick = { vm.installModule() }, enabled = !busy) { Text(stringResource(R.string.module_update)) }
                 }
             }
@@ -137,89 +130,99 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
             val update by vm.update.collectAsState()
             if (update.available || update.progress != null || update.installing) UpdateCard(vm)
 
-            // ---- power: the button shows the state in traffic-light colours
+            // ---- power: state, profile and the two actions of the PC build's home screen
             val own = status.ownProfile
             val engine = prefs.engine(own)
             val running = prefs.enabled && status.engineRunning && status.rulesOk
             val shown = remember(prefsVersion) { shownServices(vm) }
             val servicesOk = shown.values.all { it >= 100 }
-            val stateColor = when {
-                !prefs.enabled -> null
-                !running -> if (status.failed.isNotEmpty()) StatusColors.bad else StatusColors.warn
-                !servicesOk -> StatusColors.warn
-                else -> StatusColors.ok
-            }
-            SectionCard {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    FilledIconButton(
-                        onClick = { vm.setEnabled(!prefs.enabled) },
-                        enabled = status.usable && !busy,
-                        modifier = Modifier.size(128.dp),
-                        colors = if (stateColor != null) IconButtonDefaults.filledIconButtonColors(
-                            containerColor = stateColor,
-                            contentColor = StatusColors.onColor,
-                        ) else IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    ) {
-                        Icon(Icons.Filled.PowerSettingsNew, stringResource(R.string.toggle_bypass), Modifier.size(64.dp))
-                    }
-                    Spacer(Modifier.size(12.dp))
-                    val stateText = when {
-                        !prefs.enabled -> stringResource(R.string.state_off)
-                        running -> stringResource(
-                            R.string.state_on_net,
-                            (Engine.of(status.values["engine"]) ?: engine).title,
-                            profileTitle(vm, own),
-                        )
-                        status.failed.isNotEmpty() -> stringResource(R.string.state_failed, status.failed.joinToString())
-                        else -> stringResource(R.string.state_starting)
-                    }
-                    Text(stateText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    if (running && !servicesOk) Hint(stringResource(R.string.state_partial))
-                    if (prefs.enabled && status.usable && !status.hasNfqueue && engine != Engine.BYEDPI) {
-                        Hint(stringResource(R.string.no_nfqueue))
-                    }
-                }
-            }
+            val okCount = shown.values.count { it >= 100 }
+            val active = remember(presetsList, engine, own, prefsVersion) { vm.presets.active(engine, own) }
 
-            // ---- network profile: a summary, the settings are on their own screen
-            SectionCard(title = stringResource(R.string.profile_of, profileTitle(vm, own))) {
-                val active = remember(presetsList, engine, own, prefsVersion) { vm.presets.active(engine, own) }
-                Text(stringResource(R.string.profile_summary, engine.title, active.name), style = MaterialTheme.typography.bodyMedium)
-                if (prefs.lastCheckTime > 0 && prefs.lastCheckRate >= 0) {
-                    Hint(
-                        stringResource(
-                            R.string.last_check,
-                            DateUtils.getRelativeTimeSpanString(prefs.lastCheckTime).toString(),
-                            prefs.lastCheckRate,
-                        ),
+            SectionCard(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            stringResource(if (prefs.enabled) R.string.home_state_on else R.string.home_state_off),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Hint("${engine.title} · ${profileTitle(vm, own)} · ${active.name}")
+                    }
+                    Switch(
+                        checked = prefs.enabled,
+                        onCheckedChange = { vm.setEnabled(it) },
+                        enabled = status.usable && !busy,
+                    )
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Stat(
+                        if (shown.isEmpty()) "—" else "$okCount/${shown.size}",
+                        stringResource(R.string.home_stat_services),
+                        Modifier.weight(1f),
+                    )
+                    Stat(
+                        if (!prefs.tgws) "—" else if (status.tgwsRunning) "ok" else "—",
+                        stringResource(R.string.home_stat_telegram),
+                        Modifier.weight(1f),
+                    )
+                    Stat(
+                        lastCheckShort(prefs.serviceStatusTime),
+                        stringResource(R.string.home_stat_checked),
+                        Modifier.weight(1f),
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { vm.pickedProfile.value = null; nav.navigate("profile") }) {
-                        Text(stringResource(R.string.profile_open))
+                    OutlinedButton(
+                        onClick = { vm.pickedProfile.value = null; nav.navigate("profile") },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.profile_open)) }
+                    Button(onClick = { nav.switchTab("auto") }, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.strategy_autoselect))
                     }
-                    Button(onClick = { nav.switchTab("auto") }) { Text(stringResource(R.string.strategy_autoselect)) }
+                }
+                if (running && !servicesOk) Hint(stringResource(R.string.state_partial))
+                if (prefs.enabled && status.usable && !status.hasNfqueue && engine != Engine.BYEDPI) {
+                    Hint(stringResource(R.string.no_nfqueue))
+                }
+                if (prefs.enabled && status.failed.isNotEmpty()) {
+                    Hint(stringResource(R.string.state_failed, status.failed.joinToString()))
                 }
             }
 
             if (prefs.enabled && status.usable) ServiceStatusCard(vm, nav, prefsVersion)
 
             // ---- telegram
-            SectionCard(title = stringResource(R.string.telegram)) {
-                SwitchRow(
-                    title = stringResource(R.string.tgws_title),
-                    subtitle = when {
+            SectionCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.telegram),
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    StatusPill(
+                        text = stringResource(
+                            when {
+                                !prefs.tgws -> R.string.tgws_off
+                                status.tgwsRunning -> R.string.tgws_status_on
+                                else -> R.string.tgws_not_running
+                            },
+                        ),
+                        color = when {
+                            !prefs.tgws -> MaterialTheme.colorScheme.onSurfaceVariant
+                            status.tgwsRunning -> StatusColors.ok
+                            else -> StatusColors.bad
+                        },
+                    )
+                }
+                Hint(
+                    when {
                         !prefs.tgws -> stringResource(R.string.tgws_off)
                         !status.tgwsRunning -> stringResource(R.string.tgws_not_running)
                         !status.tgwsDirect -> stringResource(R.string.tgws_running_cf, prefs.tgwsPort)
                         else -> stringResource(R.string.tgws_running, prefs.tgwsPort)
                     },
-                    checked = prefs.tgws,
-                    enabled = status.usable && !busy,
-                    onChange = { vm.setTgws(it) },
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { openTelegram(context, vm) }, enabled = prefs.tgws) {
@@ -230,15 +233,21 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
             }
 
             // ---- proxy for apps
-            SectionCard(title = stringResource(R.string.proxy_title)) {
-                SwitchRow(
-                    title = proxyHomeTitle(vm),
-                    subtitle = proxyState(vm),
-                    checked = prefs.proxy,
-                    enabled = status.usable && !busy && status.proxyAvailable &&
-                        (prefs.proxy || prefs.proxyKey.isNotBlank()),
-                    onChange = { prefs.proxy = it; vm.apply() },
-                )
+            SectionCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.proxy_title),
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    StatusPill(
+                        text = stringResource(if (status.proxyRunning) R.string.tgws_status_on else R.string.tgws_status_off),
+                        color = if (status.proxyRunning) StatusColors.ok else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Hint(proxyHomeTitle(vm))
+                Hint(proxyState(vm))
                 OutlinedButton(onClick = { nav.navigate("proxy") }) { Text(stringResource(R.string.settings)) }
             }
             Spacer(Modifier.size(8.dp))
@@ -268,6 +277,33 @@ fun profileTitle(vm: MainViewModel, key: String): String = when {
     else -> vm.prefs.knownWifi[key]
         ?: vm.status.value.ssid?.takeIf { Profiles.wifiKey(it) == key }
         ?: stringResource(R.string.net_wifi)
+}
+
+/** A big value with a small caption, as in the PC build's home stats. */
+@Composable
+private fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+/** The last service check as a short "11 мин" instead of a full relative phrase. */
+@Composable
+private fun lastCheckShort(time: Long): String {
+    if (time <= 0) return "—"
+    val min = (System.currentTimeMillis() - time) / 60000
+    return when {
+        min < 1 -> stringResource(R.string.home_ago_now)
+        min < 60 -> stringResource(R.string.home_ago_min, min)
+        min < 24 * 60 -> stringResource(R.string.home_ago_hour, min / 60)
+        else -> stringResource(R.string.home_ago_day, min / (24 * 60))
+    }
 }
 
 
@@ -309,8 +345,7 @@ private fun serviceTitle(id: String): String = when (id) {
     else -> Targets.groups.firstOrNull { it.id == id }?.let { shortGroupTitle(stringResource(it.title)) } ?: id
 }
 
-/** Last check of every service as coloured chips; a tap shows what failed and what to do. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Last check of every service as a grid of dots; a tap shows what failed and what to do. */
 @Composable
 private fun ServiceStatusCard(vm: MainViewModel, nav: NavHostController, version: Int) {
     val checking by vm.checkingServices.collectAsState()
@@ -318,26 +353,61 @@ private fun ServiceStatusCard(vm: MainViewModel, nav: NavHostController, version
     val failed = remember(version) { vm.prefs.serviceFailed }
     val time = remember(version) { vm.prefs.serviceStatusTime }
     var open by remember { mutableStateOf<String?>(null) }
-    SectionCard(title = stringResource(R.string.services_title)) {
+    val ids = (ServiceCheck.GROUPS + ServiceCheck.EXTRA).filter { shown.containsKey(it) }
+    val pill = when {
+        shown.isEmpty() -> stringResource(R.string.services_none) to MaterialTheme.colorScheme.onSurfaceVariant
+        shown.values.all { it >= 100 } -> stringResource(R.string.services_all_ok) to StatusColors.ok
+        shown.values.any { it <= 0 } -> stringResource(R.string.services_failed) to StatusColors.bad
+        else -> stringResource(R.string.services_partial) to StatusColors.warn
+    }
+    SectionCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.services_title),
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            StatusPill(pill.first, pill.second)
+        }
         if (shown.isEmpty()) {
             Hint(stringResource(R.string.services_never))
         } else {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                (ServiceCheck.GROUPS + ServiceCheck.EXTRA).forEach { id ->
-                    val rate = shown[id] ?: return@forEach
-                    val color = when {
-                        rate >= 100 -> StatusColors.ok
-                        rate <= 0 -> StatusColors.bad
-                        else -> StatusColors.warn
+            ids.chunked(4).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { id ->
+                        val rate = shown[id] ?: 0
+                        val color = when {
+                            rate >= 100 -> StatusColors.ok
+                            rate <= 0 -> StatusColors.bad
+                            else -> StatusColors.warn
+                        }
+                        Column(
+                            Modifier.weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                .clickable { open = id }
+                                .padding(vertical = 9.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Box(Modifier.size(7.dp).background(color, CircleShape))
+                            Text(
+                                serviceTitle(id),
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
-                    AssistChip(
-                        onClick = { open = id },
-                        label = { Text(serviceTitle(id)) },
-                        leadingIcon = { Box(Modifier.size(10.dp).background(color, CircleShape)) },
-                    )
+                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
             if (time > 0) Hint(stringResource(R.string.services_time, DateUtils.getRelativeTimeSpanString(time).toString()))
+            val bad = failed.filterValues { it.isNotEmpty() }
+            if (bad.isNotEmpty()) {
+                Hint(bad.entries.joinToString("; ") { "${serviceTitle(it.key)}: ${it.value.joinToString(", ")}" })
+            }
             Hint(stringResource(R.string.services_tap_hint))
         }
         OutlinedButton(onClick = { vm.checkServices() }, enabled = !checking) {

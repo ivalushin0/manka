@@ -1,6 +1,8 @@
 package app.manka.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExpandLess
@@ -24,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -47,6 +53,7 @@ import app.manka.R
 @Composable
 fun ScreenScaffold(
     title: String,
+    subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     busy: Boolean = false,
     actions: @Composable () -> Unit = {},
@@ -58,7 +65,18 @@ fun ScreenScaffold(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(title) },
+                    title = {
+                        Column {
+                            Text(title)
+                            if (subtitle != null) {
+                                Text(
+                                    subtitle,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
                     navigationIcon = {
                         if (onBack != null) {
                             IconButton(onClick = onBack) {
@@ -86,6 +104,8 @@ fun SectionCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -154,6 +174,8 @@ fun FoldCard(
     var open by rememberSaveable(title) { mutableStateOf(initiallyOpen) }
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(
@@ -195,4 +217,72 @@ fun GroupHeader(text: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 4.dp, top = 8.dp),
     )
+}
+
+/**
+ * A state pill (the badge of the PC build): a tinted capsule with a dot, "Работает" / "Частично" /
+ * "Ошибка". The colour is passed explicitly so the same composable serves services, the engine and
+ * Telegram.
+ */
+@Composable
+fun StatusPill(text: String, color: Color, modifier: Modifier = Modifier) {
+    Surface(color = color.copy(alpha = 0.14f), shape = RoundedCornerShape(50), modifier = modifier) {
+        Row(
+            Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box(Modifier.size(6.dp).background(color, RoundedCornerShape(50)))
+            Text(text, style = MaterialTheme.typography.labelMedium, color = color, maxLines = 1)
+        }
+    }
+}
+
+enum class BannerKind { Info, Ok, Warn, Bad }
+
+/** The banner of the PC build: a tinted block with a title, optional text and an action. */
+@Composable
+fun Banner(
+    kind: BannerKind,
+    title: String,
+    text: String? = null,
+    modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
+) {
+    val color = when (kind) {
+        BannerKind.Ok -> StatusColors.ok
+        BannerKind.Warn -> StatusColors.warn
+        BannerKind.Bad -> StatusColors.bad
+        BannerKind.Info -> MaterialTheme.colorScheme.secondary
+    }
+    Surface(
+        color = color.copy(alpha = 0.10f),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.32f)),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            if (text != null) {
+                Text(text, style = HintStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (action != null) {
+                Box(Modifier.padding(top = 4.dp)) { action() }
+            }
+        }
+    }
+}
+
+/** A labelled value row of the Telegram / Doctor cards. */
+@Composable
+fun KeyRow(key: String, value: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            key,
+            Modifier.width(84.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Box(Modifier.weight(1f)) { value() }
+    }
 }

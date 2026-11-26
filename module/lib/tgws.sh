@@ -112,3 +112,31 @@ tgws_check() {
 		tgws_restart
 	fi
 }
+
+# "name pid" of the process that holds TGWS_PORT, empty when the port is free. The official TgWsProxy
+# app and Manka both want 1443, and the app can only explain the conflict if it knows the owner.
+tgws_port_owner() {
+	ss -tlnp 2>/dev/null | grep ":$TGWS_PORT " \
+		| sed -n 's/.*users:(("\([^"]*\)",pid=\([0-9][0-9]*\).*/\1 \2/p' | head -n 1
+}
+
+# Frees the port when a Telegram proxy holds it. Anything else is left alone and reported: killing a
+# random process on a port the user may have chosen deliberately is not worth the risk.
+tgws_take_port() {
+	_owner=$(tgws_port_owner)
+	[ -n "$_owner" ] || { echo ok; return 0; }
+	_name=${_owner% *}
+	case "$_name" in
+		*tgwsproxy*|*tg-ws-proxy*|io.github.regstar2.*)
+			# an app: disable it, so it does not come back and grab the port again after a reboot
+			pm disable-user --user 0 "$_name" >/dev/null 2>&1 || kill "${_owner#* }" 2>/dev/null
+			;;
+		*)
+			echo "owner is not a Telegram proxy: $_owner"
+			return 1
+			;;
+	esac
+	sleep 1
+	tgws_restart
+	echo ok
+}

@@ -3,13 +3,11 @@ package app.manka.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,9 +37,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.manka.R
 import app.manka.core.Module
+import app.manka.ui.Banner
+import app.manka.ui.BannerKind
 import app.manka.ui.Hint
+import app.manka.ui.KeyRow
 import app.manka.ui.MainViewModel
 import app.manka.ui.Mono
+import app.manka.ui.StatusPill
 import app.manka.ui.ScreenScaffold
 import app.manka.ui.SectionCard
 import app.manka.ui.StatusColors
@@ -60,6 +63,14 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
     var showSecret by rememberSaveable { mutableStateOf(false) }
     var check by remember { mutableStateOf<String?>(null) }
     var checking by remember { mutableStateOf(false) }
+    var owner by remember { mutableStateOf<String?>(null) }
+
+    // the port may be taken by the official TgWsProxy app: it and Manka both use 1443
+    LaunchedEffect(status.tgwsRunning, prefs.tgws) {
+        owner = if (prefs.tgws && !status.tgwsRunning) {
+            runCatching { Module.run("tgws-port-owner").out.trim() }.getOrNull()?.takeIf { it.isNotBlank() }
+        } else null
+    }
 
     /** Saves the settings and applies them: the module restarts the proxy only when its arguments
      * really changed (a restart cuts every connection of Telegram). */
@@ -74,7 +85,12 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
         vm.say(R.string.tgws_copied)
     }
 
-    ScreenScaffold(title = stringResource(R.string.telegram), onBack = onBack, busy = busy) { pad ->
+    ScreenScaffold(
+        title = stringResource(R.string.telegram),
+        subtitle = stringResource(R.string.tgws_subtitle),
+        onBack = onBack,
+        busy = busy,
+    ) { pad ->
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(pad),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -87,7 +103,10 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    StatusPill(running = status.tgwsRunning)
+                    StatusPill(
+                        text = stringResource(if (status.tgwsRunning) R.string.tgws_status_on else R.string.tgws_status_off),
+                        color = if (status.tgwsRunning) StatusColors.ok else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 SwitchRow(
                     title = stringResource(R.string.tgws_title),
@@ -122,6 +141,27 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Mono(it, Modifier.fillMaxWidth().padding(12.dp))
+                    }
+                }
+            }
+
+            val ownerName = owner?.substringBefore(' ')?.takeIf { it.isNotBlank() }
+            if (ownerName != null) {
+                val ownerPid = owner?.substringAfter(' ', "").orEmpty().ifBlank { "?" }
+                val known = ownerName.contains("tgws", true) || ownerName.contains("tg-ws-proxy", true)
+                Banner(
+                    kind = BannerKind.Warn,
+                    title = stringResource(R.string.tgws_port_busy, prefs.tgwsPort, ownerName, ownerPid),
+                    text = stringResource(R.string.tgws_port_busy_hint),
+                ) {
+                    if (known) {
+                        OutlinedButton(onClick = {
+                            scope.launch {
+                                Module.run("tgws-take-port")
+                                vm.refresh()
+                                owner = null
+                            }
+                        }) { Text(stringResource(R.string.tgws_take_port)) }
                     }
                 }
             }
@@ -175,28 +215,4 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 }
 
-@Composable
-private fun StatusPill(running: Boolean) {
-    val color = if (running) StatusColors.ok else MaterialTheme.colorScheme.onSurfaceVariant
-    Surface(color = color.copy(alpha = 0.15f), shape = RoundedCornerShape(50)) {
-        Text(
-            stringResource(if (running) R.string.tgws_status_on else R.string.tgws_status_off),
-            Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = color,
-        )
-    }
-}
 
-@Composable
-private fun KeyRow(key: String, value: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            key,
-            Modifier.width(84.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Box(Modifier.weight(1f)) { value() }
-    }
-}

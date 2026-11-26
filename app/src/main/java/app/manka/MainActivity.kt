@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +46,7 @@ import app.manka.core.Engine
 import app.manka.ui.MainViewModel
 import app.manka.ui.screens.AppsScreen
 import app.manka.ui.screens.AutoSelectScreen
+import app.manka.ui.screens.DoctorScreen
 import app.manka.ui.screens.HistoryRunScreen
 import app.manka.ui.screens.HistoryScreen
 import app.manka.ui.screens.HomeScreen
@@ -65,7 +67,11 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // the app always uses the dark brand palette: light system-bar icons, whatever the system theme
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -129,6 +135,7 @@ private fun MankaNav(vm: MainViewModel) {
             composable("store") { StoreScreen(vm) }
             composable("settings") { SettingsScreen(vm, nav) }
             composable("telegram") { TelegramScreen(vm) { nav.popBackStack() } }
+            composable("doctor") { DoctorScreen(vm) { nav.popBackStack() } }
             composable("apps") { AppsScreen(vm) { nav.popBackStack() } }
             composable("proxy") { ProxyScreen(vm, nav) }
             composable("proxy_apps") { ProxyAppsScreen(vm) { nav.popBackStack() } }

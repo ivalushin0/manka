@@ -1,51 +1,62 @@
 package app.manka.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
-private val Light = lightColorScheme(
-    primary = Color(0xFF8A4F16),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFFFDCC2),
-    onPrimaryContainer = Color(0xFF2E1500),
-    secondary = Color(0xFF745845),
-    secondaryContainer = Color(0xFFFFDCC7),
-    tertiary = Color(0xFF5E6135),
-    tertiaryContainer = Color(0xFFE4E6AF),
-    background = Color(0xFFFFF8F5),
-    surface = Color(0xFFFFF8F5),
+/**
+ * Manka's own palette, the same tokens as the PC build (Manka-UI, app/src/app.css): a dark navy
+ * background, cards with a thin border, violet and cyan accents. It replaces the dynamic Material 3
+ * colours: the two apps should look like one product, and a wallpaper-generated palette cannot do
+ * that. Keep in sync with docs/DESIGN.md.
+ */
+private val Manka = darkColorScheme(
+    primary = Color(0xFF8B6DFF),
+    onPrimary = Color(0xFF140A33),
+    primaryContainer = Color(0xFF2A2350),
+    onPrimaryContainer = Color(0xFFDDD6FF),
+    secondary = Color(0xFF22D3EE),
+    onSecondary = Color(0xFF00272E),
+    secondaryContainer = Color(0xFF123844),
+    onSecondaryContainer = Color(0xFFB8F4FF),
+    tertiary = Color(0xFF7C5CFF),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFF232043),
+    onTertiaryContainer = Color(0xFFD9D2FF),
+    background = Color(0xFF0A0E17),
+    onBackground = Color(0xFFE8EEFC),
+    surface = Color(0xFF0A0E17),
+    onSurface = Color(0xFFE8EEFC),
+    surfaceVariant = Color(0xFF172134),
+    onSurfaceVariant = Color(0xFF93A1BD),
+    surfaceContainerLowest = Color(0xFF080B12),
+    surfaceContainerLow = Color(0xFF0F1522),
+    surfaceContainer = Color(0xFF131B2B),
+    surfaceContainerHigh = Color(0xFF172134),
+    surfaceContainerHighest = Color(0xFF1B2538),
+    outline = Color(0xFF223049),
+    outlineVariant = Color(0xFF1B2538),
+    error = Color(0xFFEF4444),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFF3A1618),
+    onErrorContainer = Color(0xFFFCA5A5),
+    inverseSurface = Color(0xFFE8EEFC),
+    inverseOnSurface = Color(0xFF131B2B),
 )
 
-private val Dark = darkColorScheme(
-    primary = Color(0xFFFFB77C),
-    onPrimary = Color(0xFF4C2700),
-    primaryContainer = Color(0xFF6C3A00),
-    onPrimaryContainer = Color(0xFFFFDCC2),
-    secondary = Color(0xFFE4BFA7),
-    secondaryContainer = Color(0xFF5B4130),
-    tertiary = Color(0xFFC8CA95),
-    tertiaryContainer = Color(0xFF46491F),
-    background = Color(0xFF1A120D),
-    surface = Color(0xFF1A120D),
+private val MankaShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(20.dp),
 )
 
 @Composable
 fun MankaTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val context = LocalContext.current
-    val scheme = when {
-        Build.VERSION.SDK_INT >= 31 && dark -> dynamicDarkColorScheme(context)
-        Build.VERSION.SDK_INT >= 31 -> dynamicLightColorScheme(context)
-        dark -> Dark
-        else -> Light
-    }
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(colorScheme = Manka, shapes = MankaShapes, content = content)
 }

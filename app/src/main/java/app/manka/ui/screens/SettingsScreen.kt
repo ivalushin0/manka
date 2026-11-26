@@ -354,11 +354,18 @@ fun SettingsScreen(vm: MainViewModel, nav: NavHostController) {
                     onChange = { prefs.debugLogs = it; applyIfOn() },
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { nav.navigate("logs") }) { Text(stringResource(R.string.logs)) }
-                    OutlinedButton(onClick = { vm.installModule() }, enabled = status.rootOk && !busy) {
-                        Text(stringResource(R.string.module_reinstall))
+                    OutlinedButton(onClick = { nav.navigate("logs") }, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.logs))
+                    }
+                    OutlinedButton(onClick = { nav.navigate("doctor") }, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.doctor_title))
                     }
                 }
+                OutlinedButton(
+                    onClick = { vm.installModule() },
+                    enabled = status.rootOk && !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.module_reinstall)) }
             }
 
             FoldCard(

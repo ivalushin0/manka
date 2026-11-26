@@ -313,12 +313,14 @@ case "$1" in
 		;;
 	tgws-check) tgws_check ;;
 	tgws-probe) tgws_probe ;;
+	tgws-port-owner) tgws_port_owner ;;
+	tgws-take-port) tgws_take_port ;;
 	test-start) shift; cmd_test_start "$@" ;;
 	test-stop) cmd_test_stop ;;
 	_supervise) shift; supervise "$@" ;;
 	_netwatch) netwatch ;;
 	*)
-		echo "usage: $0 start|stop|restart|status|boot|net-apply|tgws-restart|test-start ENGINE ARGSFILE UID|test-stop"
+		echo "usage: $0 start|stop|restart|status|boot|net-apply|tgws-restart|tgws-probe|tgws-port-owner|tgws-take-port|test-start ENGINE ARGSFILE UID|test-stop"
 		exit 1
 		;;
 esac

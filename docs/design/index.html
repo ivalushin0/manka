@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manka — предложение по дизайну</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --bg-soft: #0f1522;
+    --card: #131b2b;
+    --card-2: #172134;
+    --line: #223049;
+    --line-soft: #1b2538;
+    --text: #e8eefc;
+    --muted: #93a1bd;
+    --dim: #64748b;
+    --accent: #7c5cff;
+    --accent-2: #22d3ee;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --radius: 16px;
+    --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(1100px 700px at 85% -10%, rgba(124, 92, 255, 0.16), transparent 55%),
+      radial-gradient(900px 600px at -10% 110%, rgba(34, 211, 238, 0.10), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font: 14px/1.45 "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  }
+  a { color: var(--accent-2); text-decoration: none; }
+
+  .top {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 18px;
+    padding: 14px 26px;
+    background: rgba(10, 14, 23, 0.82);
+    border-bottom: 1px solid var(--line-soft);
+    backdrop-filter: blur(14px);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+    font-weight: 800; font-size: 20px; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 8px 24px rgba(124, 92, 255, 0.4);
+  }
+  .brand-name { font-weight: 650; font-size: 16px; letter-spacing: 0.2px; }
+  .brand-sub { color: var(--dim); font-size: 11px; }
+  .top nav { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  .top nav a {
+    color: var(--muted); font-size: 12.5px; padding: 7px 12px; border-radius: 9px;
+    border: 1px solid transparent;
+  }
+  .top nav a:hover { color: var(--text); border-color: var(--line); background: var(--bg-soft); }
+
+  main { max-width: 1320px; margin: 0 auto; padding: 26px 24px 80px; }
+  section { margin-top: 46px; }
+  h2 { font-size: 21px; margin: 0 0 4px; letter-spacing: 0.2px; }
+  .section-sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; max-width: 760px; }
+
+  .intro {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+    margin-top: 8px;
+  }
+  .intro .card { padding: 16px; }
+  .intro h3 { margin: 0 0 6px; font-size: 13.5px; }
+  .intro p { margin: 0; color: var(--muted); font-size: 12.5px; }
+  .intro .num {
+    display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 7px;
+    background: rgba(124, 92, 255, 0.16); color: #b9a9ff; font-size: 12px; font-weight: 700;
+    margin-right: 8px;
+  }
+
+  /* ---------- phone frames ---------- */
+  .frames { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start; }
+  .frame-wrap { width: 390px; }
+  .caption { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px 4px; }
+  .caption b { font-size: 14px; font-weight: 600; }
+  .caption span { color: var(--dim); font-size: 11.5px; }
+  .phone {
+    width: 390px; border-radius: 30px; overflow: hidden; position: relative;
+    background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .phone::before {
+    content: ""; position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+    width: 96px; height: 5px; border-radius: 99px; background: #26344d;
+  }
+  .statusbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 20px 2px; color: var(--muted); font-size: 11px;
+  }
+  .statusbar .ic { display: flex; gap: 5px; align-items: center; }
+  .statusbar .dotbat { width: 17px; height: 9px; border: 1px solid var(--muted); border-radius: 2px; position: relative; }
+  .statusbar .dotbat::after { content: ""; position: absolute; inset: 1px; right: 5px; background: var(--ok); border-radius: 1px; }
+
+  .appbar { display: flex; align-items: center; gap: 11px; padding: 12px 16px 6px; }
+  .appbar .back {
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+    border: 1px solid var(--line); color: var(--muted); font-size: 15px;
+  }
+  .appbar h1 { margin: 0; font-size: 19px; letter-spacing: 0.2px; }
+  .appbar .sub { color: var(--dim); font-size: 11px; margin-top: 1px; }
+  .appbar .right { margin-left: auto; }
+
+  .content { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 12px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line-soft);
+    border-radius: var(--radius); padding: 14px;
+  }
+  .card.flat { background: var(--bg-soft); }
+  .card-title { font-weight: 600; font-size: 14px; }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .card-head .card-title { flex: 1; }
+  .card-note { color: var(--dim); font-size: 11.5px; margin-top: 2px; }
+
+  .hero {
+    background:
+      radial-gradient(420px 200px at 110% -20%, rgba(34, 211, 238, 0.18), transparent 60%),
+      linear-gradient(160deg, #1a2340, var(--card) 62%);
+    border: 1px solid #28365a;
+  }
+  .hero .state { font-size: 20px; font-weight: 700; letter-spacing: 0.2px; }
+  .hero .where { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .hero .stats { display: flex; gap: 16px; margin: 14px 0 14px; }
+  .hero .stat b { display: block; font-size: 15px; font-weight: 650; }
+  .hero .stat span { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row.wrap { flex-wrap: wrap; }
+  .row.end { justify-content: flex-end; }
+  .grow { flex: 1; min-width: 0; }
+  .stack { display: flex; flex-direction: column; gap: 6px; }
+  .hint { color: var(--dim); font-size: 11.5px; line-height: 1.5; }
+  .mono { font-family: "Cascadia Mono", Consolas, monospace; font-size: 11.5px; color: var(--muted); }
+  .divider { height: 1px; background: var(--line-soft); margin: 10px 0; }
+
+  .switch { width: 42px; height: 25px; border-radius: 99px; background: var(--accent); position: relative; flex: none; }
+  .switch::after {
+    content: ""; position: absolute; top: 3px; right: 3px; width: 19px; height: 19px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  .switch.off { background: #2a3854; }
+  .switch.off::after { right: auto; left: 3px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--card-2); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 550;
+    white-space: nowrap; cursor: default;
+  }
+  .btn.small { height: 30px; padding: 0 10px; font-size: 11.5px; }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #6a4bff); border-color: transparent; color: #fff; }
+  .btn.ghost { background: transparent; }
+  .btn.danger { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+  .btn.ok { background: rgba(34, 197, 94, 0.14); border-color: rgba(34, 197, 94, 0.4); color: #86efac; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 22px; padding: 0 9px; border-radius: 99px; font-size: 11px; font-weight: 600;
+    background: rgba(148, 163, 184, 0.12); color: var(--muted); flex: none;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.ok { background: rgba(34, 197, 94, 0.14); color: #4ade80; }
+  .badge.warn { background: rgba(245, 158, 11, 0.14); color: #fbbf24; }
+  .badge.bad { background: rgba(239, 68, 68, 0.14); color: #f87171; }
+  .badge.muted { background: rgba(148, 163, 184, 0.12); color: var(--muted); }
+  .badge.plain::before { display: none; }
+
+  .kv { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 9px 10px; align-items: center; }
+  .kv .k { color: var(--dim); font-size: 12px; }
+  .kv .v { min-width: 0; display: flex; align-items: center; gap: 8px; }
+  .kv .v .mono { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .banner {
+    display: flex; gap: 10px; padding: 11px 12px; border-radius: 12px;
+    font-size: 12px; line-height: 1.5; border: 1px solid var(--line);
+    background: var(--card-2); color: var(--muted);
+  }
+  .banner b { color: var(--text); font-weight: 600; }
+  .banner .bi { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+  .banner.warn { background: rgba(245, 158, 11, 0.10); border-color: rgba(245, 158, 11, 0.32); }
+  .banner.warn b { color: #fcd34d; }
+  .banner.ok { background: rgba(34, 197, 94, 0.10); border-color: rgba(34, 197, 94, 0.30); }
+  .banner.ok b { color: #86efac; }
+  .banner.bad { background: rgba(239, 68, 68, 0.10); border-color: rgba(239, 68, 68, 0.32); }
+  .banner.bad b { color: #fca5a5; }
+
+  .field {
+    background: var(--bg-soft); border: 1px solid var(--line); border-radius: 11px;
+    padding: 8px 11px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .field span { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .field b { font-weight: 500; font-size: 14px; }
+  .field .mono { color: var(--text); }
+
+  .services { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .svc {
+    background: var(--bg-soft); border: 1px solid var(--line-soft); border-radius: 12px;
+    padding: 9px 6px; text-align: center; font-size: 10.5px; color: var(--muted);
+  }
+  .svc i {
+    display: block; width: 7px; height: 7px; border-radius: 50%; margin: 0 auto 6px;
+    background: var(--ok); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+  }
+  .svc.warn i { background: var(--warn); box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12); }
+  .svc.bad i { background: var(--bad); box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12); }
+
+  .navbar {
+    display: flex; justify-content: space-around; align-items: flex-end;
+    border-top: 1px solid var(--line-soft); padding: 9px 8px 14px; margin-top: 2px;
+    color: var(--dim); font-size: 10px; text-align: center;
+  }
+  .navbar .item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .navbar .item.on { color: var(--accent-2); }
+  .navbar .ic { width: 18px; height: 18px; border-radius: 6px; border: 1px solid currentColor; opacity: .8; }
+
+  .doctor-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  .doctor-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .doctor-row .name { font-size: 13px; font-weight: 550; }
+  .doctor-row .detail { color: var(--dim); font-size: 11.5px; margin-top: 2px; }
+  .doctor-row .badge { margin-top: 1px; }
+
+  .codes { background: #0b1220; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; }
+  .codes .mono { color: #9fb0cd; white-space: pre-wrap; line-height: 1.6; }
+  .codes .ok { color: #4ade80; }
+
+  /* ---------- components ---------- */
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .demo { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .sw { border: 1px solid var(--line-soft); border-radius: 12px; overflow: hidden; background: var(--card); }
+  .sw .chip { height: 54px; }
+  .sw .meta { padding: 7px 9px; font-size: 10.5px; color: var(--muted); }
+  .sw .meta b { display: block; color: var(--text); font-size: 11px; font-weight: 600; }
+  .type-row { display: flex; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .sample { flex: 1; }
+  .type-row .tag { color: var(--dim); font-size: 10.5px; white-space: nowrap; }
+
+  .note {
+    margin-top: 18px; padding: 13px 15px; border-radius: 12px;
+    border: 1px dashed var(--line); color: var(--muted); font-size: 12.5px;
+  }
+  .note b { color: var(--text); }
+
+  @media (max-width: 900px) {
+    .intro { grid-template-columns: 1fr; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .top { flex-wrap: wrap; }
+    .swatches { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="logo">M</div>
+    <div>
+      <div class="brand-name">Manka</div>
+      <div class="brand-sub">Предложение по дизайну · макет, не приложение</div>
+    </div>
+  </div>
+  <nav>
+    <a href="#screens">Экраны</a>
+    <a href="#components">Компоненты</a>
+    <a href="#tokens">Токены</a>
+  </nav>
+</header>
+
+<main>
+
+  <div class="intro">
+    <div class="card">
+      <h3><span class="num">1</span>Один язык с PC-версией</h3>
+      <p>Палитра, радиусы и типографика как в Manka-UI: тёмно-синий фон, фиолетово-бирюзовые акценты,
+        карточки с тонкой рамкой. Вместо динамических цветов Material 3 — фирменные.</p>
+    </div>
+    <div class="card">
+      <h3><span class="num">2</span>Статус вместо догадок</h3>
+      <p>Пилюли «Работает / Частично / Ошибка», баннеры проблем и моноширинные значения.
+        Сразу видно, что сломано, а не только «порт слушает».</p>
+    </div>
+    <div class="card">
+      <h3><span class="num">3</span>Три экрана для начала</h3>
+      <p>Главная, Telegram и «Доктор». Остальные (Автоподбор, Магазин, Настройки) приводим к тому же
+        виду после того, как согласуем базу.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================ screens -->
+  <section id="screens">
+    <h2>Экраны</h2>
+    <p class="section-sub">
+      Ниже — как это может выглядеть на телефоне. Данные живые (0.1.0-61, Wi-Fi TrapHata),
+      вёрстка — макет: кнопки не нажимаются, но всё можно листать.
+    </p>
+
+    <div class="frames">
+
+      <!-- ------------------------------------------------ home -->
+      <div class="frame-wrap">
+        <div class="caption"><b>Главная</b><span>статус, сервисы, Telegram</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="ic">5G <span class="dotbat"></span></span></div>
+          <div class="appbar">
+            <div class="logo" style="width:32px;height:32px;font-size:16px;border-radius:10px;">M</div>
+            <div>
+              <h1 style="font-size:17px;">Manka</h1>
+              <div class="sub">обход DPI · профиль TrapHata</div>
+            </div>
+            <div class="right"><span class="badge ok">Включено</span></div>
+          </div>
+
+          <div class="content">
+            <div class="card hero">
+              <div class="row">
+                <div class="grow">
+                  <div class="state">Обход включён</div>
+                  <div class="where">zapret2 · Wi-Fi TrapHata · правила применены</div>
+                </div>
+                <div class="switch"></div>
+              </div>
+              <div class="stats">
+                <div class="stat"><b>8/8</b><span>сервисов</span></div>
+                <div class="stat"><b>ok</b><span>Telegram</span></div>
+                <div class="stat"><b>11 мин</b><span>назад проверено</span></div>
+              </div>
+              <div class="row">
+                <button class="btn ghost grow">Профиль и стратегии</button>
+                <button class="btn primary">Подобрать</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title">Сервисы</div>
+                <span class="badge ok plain">все открылись</span>
+              </div>
+              <div class="services">
+                <div class="svc"><i></i>YouTube</div>
+                <div class="svc warn"><i></i>Instagram</div>
+                <div class="svc"><i></i>Facebook</div>
+                <div class="svc"><i></i>TikTok</div>
+                <div class="svc warn"><i></i>Discord</div>
+                <div class="svc"><i></i>WhatsApp</div>
+                <div class="svc"><i></i>Telegram</div>
+                <div class="svc"><i></i>Gemini</div>
+              </div>
+              <div class="hint" style="margin-top:9px;">Instagram и Discord — частично: открываются не все адреса.</div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title">Telegram</div>
+                <span class="badge ok">Работает</span>
+              </div>
+              <div class="hint" style="margin-bottom:10px;">
+                127.0.0.1:1443 · 6 соединений · через Cloudflare
+              </div>
+              <div class="row">
+                <button class="btn primary grow">Подключить Telegram</button>
+                <button class="btn ghost">Проверить</button>
+              </div>
+              <div class="row" style="margin-top:8px;justify-content:flex-end;">
+                <a href="#telegram" style="font-size:12px;color:var(--muted);">Настройки →</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title">Прокси для приложений</div>
+                <span class="badge ok">6 приложений</span>
+              </div>
+              <div class="hint">Gemini, Claude, Google и ещё 3 — через ваш сервер (KZ).</div>
+            </div>
+          </div>
+
+          <div class="navbar">
+            <div class="item on"><span class="ic"></span>Главная</div>
+            <div class="item"><span class="ic"></span>Автоподбор</div>
+            <div class="item"><span class="ic"></span>Магазин</div>
+            <div class="item"><span class="ic"></span>Настройки</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ------------------------------------------------ telegram -->
+      <div class="frame-wrap" id="telegram">
+        <div class="caption"><b>Telegram</b><span>статус, проверка, параметры</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="ic">5G <span class="dotbat"></span></span></div>
+          <div class="appbar">
+            <div class="back">‹</div>
+            <div>
+              <h1>Telegram</h1>
+              <div class="sub">прокси без VPN</div>
+            </div>
+            <div class="right"><span class="badge ok">Работает</span></div>
+          </div>
+
+          <div class="content">
+            <div class="card">
+              <div class="row">
+                <div class="grow">
+                  <div class="card-title">TG WS Proxy</div>
+                  <div class="hint" style="margin-top:3px;">Работает на 127.0.0.1:1443</div>
+                </div>
+                <div class="switch"></div>
+              </div>
+              <div class="hint" style="margin:10px 0;">
+                Прокси поднимает root-модуль, поэтому он работает при выключенном экране и после
+                перезагрузки. Telegram держит через него соединение и уведомления.
+              </div>
+              <div class="row">
+                <button class="btn primary grow">Подключить Telegram</button>
+                <button class="btn ghost">Проверить</button>
+              </div>
+              <div class="codes" style="margin-top:10px;">
+                <div class="mono"><span class="ok">ok:</span> pid 15632, port 1443, uptime 36s
+routes: connected=5, unavailable=0</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><div class="card-title">Параметры подключения</div></div>
+              <div class="kv">
+                <div class="k">Сервер</div><div class="v"><span class="mono">127.0.0.1</span></div>
+                <div class="k">Порт</div><div class="v"><span class="mono">1443</span></div>
+                <div class="k">Секрет</div>
+                <div class="v">
+                  <span class="mono">••••••••••••</span>
+                  <button class="btn small ghost">Показать</button>
+                  <button class="btn small ghost">Копировать</button>
+                </div>
+                <div class="k">Ссылка</div>
+                <div class="v"><span class="mono">tg://proxy?server=127.0.0.1&amp;port=1443&amp;secret=dd…</span></div>
+              </div>
+              <div class="row end" style="margin-top:8px;">
+                <button class="btn small ghost">Копировать ссылку</button>
+              </div>
+            </div>
+
+            <div class="banner warn">
+              <span class="bi">⚠</span>
+              <div>
+                <b>Порт 1443 занят: TgWsProxy (PID 1234).</b>
+                Похоже, это официальное приложение. Освободить порт и запустить Manka?
+                <div class="row" style="margin-top:8px;"><button class="btn small danger">Занять порт</button></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><div class="card-title">Подключение</div></div>
+              <div class="row" style="gap:10px;">
+                <div class="field grow"><span>Порт</span><b>1443</b></div>
+                <div class="field grow"><span>Протокол</span><b>Cloudflare · ws:80</b></div>
+              </div>
+              <div class="row" style="margin-top:10px;">
+                <button class="btn ghost grow">Новый секрет</button>
+                <button class="btn primary grow">Сохранить и перезапустить</button>
+              </div>
+              <div class="hint" style="margin-top:10px;">
+                После смены секрета или порта снова нажмите «Подключить Telegram».
+              </div>
+            </div>
+          </div>
+
+          <div class="navbar">
+            <div class="item"><span class="ic"></span>Главная</div>
+            <div class="item"><span class="ic"></span>Автоподбор</div>
+            <div class="item"><span class="ic"></span>Магазин</div>
+            <div class="item"><span class="ic"></span>Настройки</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ------------------------------------------------ doctor -->
+      <div class="frame-wrap">
+        <div class="caption"><b>Доктор</b><span>новый экран диагностики</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="ic">5G <span class="dotbat"></span></span></div>
+          <div class="appbar">
+            <div class="back">‹</div>
+            <div>
+              <h1>Доктор</h1>
+              <div class="sub">проверка всех узлов</div>
+            </div>
+          </div>
+
+          <div class="content">
+            <div class="card hero" style="padding:16px;">
+              <div class="row">
+                <div class="grow">
+                  <div class="state" style="font-size:17px;">Всё в порядке</div>
+                  <div class="where">7 проверок пройдено · 26.11, 22:52</div>
+                </div>
+                <span class="badge ok">ok</span>
+              </div>
+              <div class="row" style="margin-top:12px;">
+                <button class="btn ghost grow">Проверить снова</button>
+                <button class="btn primary">Собрать отчёт</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="doctor-row">
+                <div class="grow"><div class="name">Root</div><div class="detail">KernelSU-Next, uid 0</div></div>
+                <span class="badge ok">есть</span>
+              </div>
+              <div class="doctor-row">
+                <div class="grow"><div class="name">Модуль</div><div class="detail">v0.1.0-61 · активен</div></div>
+                <span class="badge ok">ok</span>
+              </div>
+              <div class="doctor-row">
+                <div class="grow"><div class="name">Движок</div><div class="detail">zapret2 · профиль TrapHata · правила применены</div></div>
+                <span class="badge ok">ok</span>
+              </div>
+              <div class="doctor-row">
+                <div class="grow"><div class="name">DNS</div><div class="detail">DoH Google · 127.0.0.1:10853 слушает</div></div>
+                <span class="badge ok">ok</span>
+              </div>
+              <div class="doctor-row">
+                <div class="grow"><div class="name">Telegram</div><div class="detail">cf_proxy_ws · 5 маршрутов · 0 ошибок</div></div>
+                <span class="badge ok">ok</span>
+              </div>
+              <div class="doctor-row">
+                <div class="grow"><div class="name">Прокси приложений</div><div class="detail">Xray · 6 приложений · выход KZ</div></div>
+                <span class="badge ok">ok</span>
+              </div>
+              <div class="doctor-row">
+                <div class="grow"><div class="name">Сеть</div><div class="detail">Wi-Fi TrapHata · 192.168.3.63</div></div>
+                <span class="badge ok">ok</span>
+              </div>
+            </div>
+
+            <div class="banner ok">
+              <span class="bi">✓</span>
+              <div><b>Последний сбой: 21:16, DNS.</b> Кулдаун доменов 30 с, восстановилось само.
+                <div class="row" style="margin-top:6px;"><a href="#" class="mono">открыть журнал →</a></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><div class="card-title">Журнал</div><span class="badge muted plain">за 24 часа</span></div>
+              <div class="codes"><div class="mono">21:16  CF domain cooldown … until +30s
+21:16  cfproxy pool unavailable (20 доменов)
+21:16  route connected dc=2
+…</div></div>
+            </div>
+          </div>
+
+          <div class="navbar">
+            <div class="item"><span class="ic"></span>Главная</div>
+            <div class="item"><span class="ic"></span>Автоподбор</div>
+            <div class="item"><span class="ic"></span>Магазин</div>
+            <div class="item on"><span class="ic"></span>Настройки</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="note">
+      <b>Что осталось за кадром.</b> Автоподбор, Магазин и Настройки пока в текущем виде — их
+      приводим к этой же сетке (page-head, карточки, баннеры) после того, как утвердим палитру и
+      компоненты. Экран «Доктор» новый; если он не нужен, его функции можно разложить по Главной.
+    </div>
+  </section>
+
+  <!-- ============================================================ components -->
+  <section id="components">
+    <h2>Компоненты</h2>
+    <p class="section-sub">Один набор на все экраны: кнопки, статусы, баннеры, поля и строки параметров.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Кнопки</div></div>
+        <div class="demo">
+          <button class="btn primary">Основная</button>
+          <button class="btn">Обычная</button>
+          <button class="btn ghost">Прозрачная</button>
+          <button class="btn danger">Опасная</button>
+          <button class="btn small ghost">Маленькая</button>
+        </div>
+        <div class="hint" style="margin-top:10px;">Одна основная кнопка на экран. Перезапуск и удаление — «опасные».</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Статусы</div></div>
+        <div class="demo">
+          <span class="badge ok">Работает</span>
+          <span class="badge warn">Частично</span>
+          <span class="badge bad">Ошибка</span>
+          <span class="badge muted">Выключено</span>
+          <span class="badge ok plain">8/8 сервисов</span>
+        </div>
+        <div class="hint" style="margin-top:10px;">Зелёный — всё ок, жёлтый — работает не полностью, красный — не работает.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Баннеры</div></div>
+        <div class="stack">
+          <div class="banner ok"><span class="bi">✓</span><div><b>Telegram работает.</b> Текст и медиа идут через Cloudflare.</div></div>
+          <div class="banner warn"><span class="bi">⚠</span><div><b>Порт 1443 занят.</b> Официальное приложение TgWsProxy запущено.</div></div>
+          <div class="banner bad"><span class="bi">✕</span><div><b>Движок не запустился.</b> Проверьте стратегию или журнал.</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Поля и переключатели</div></div>
+        <div class="row" style="gap:10px;">
+          <div class="field grow"><span>Порт</span><b>1443</b></div>
+          <div class="field grow"><span>Профиль</span><b>TrapHata</b></div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div class="grow"><div style="font-size:13px;">TG WS Proxy</div><div class="hint">Работает на 127.0.0.1:1443</div></div>
+          <div class="switch"></div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div class="grow"><div style="font-size:13px;">Проверка в фоне</div><div class="hint">каждые 6 часов</div></div>
+          <div class="switch off"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ tokens -->
+  <section id="tokens">
+    <h2>Токены</h2>
+    <p class="section-sub">
+      Взяты из Manka-UI, чтобы Android и PC не расходились. Один файл-справка в обоих репозиториях
+      (<span class="mono">docs/DESIGN.md</span>) + те же значения в теме приложения.
+    </p>
+
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#0a0e17;"></div><div class="meta"><b>Фон</b>#0a0e17</div></div>
+      <div class="sw"><div class="chip" style="background:#131b2b;"></div><div class="meta"><b>Карточка</b>#131b2b</div></div>
+      <div class="sw"><div class="chip" style="background:#223049;"></div><div class="meta"><b>Рамка</b>#223049</div></div>
+      <div class="sw"><div class="chip" style="background:#7c5cff;"></div><div class="meta"><b>Акцент</b>#7c5cff</div></div>
+      <div class="sw"><div class="chip" style="background:#22d3ee;"></div><div class="meta"><b>Второй акцент</b>#22d3ee</div></div>
+      <div class="sw"><div class="chip" style="background:#22c55e;"></div><div class="meta"><b>Ок</b>#22c55e</div></div>
+      <div class="sw"><div class="chip" style="background:#f59e0b;"></div><div class="meta"><b>Внимание</b>#f59e0b</div></div>
+      <div class="sw"><div class="chip" style="background:#ef4444;"></div><div class="meta"><b>Ошибка</b>#ef4444</div></div>
+    </div>
+
+    <div class="grid-2" style="margin-top:14px;">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Типографика</div></div>
+        <div class="type-row"><div class="sample" style="font-size:20px;font-weight:700;">Обход включён</div><div class="tag">20 · 700</div></div>
+        <div class="type-row"><div class="sample" style="font-size:15px;font-weight:600;">Telegram</div><div class="tag">15 · 600</div></div>
+        <div class="type-row"><div class="sample" style="font-size:14px;">Параметры подключения</div><div class="tag">14 · 400</div></div>
+        <div class="type-row"><div class="sample" style="font-size:12px;color:var(--muted);">Подсказка под карточкой</div><div class="tag">12 · muted</div></div>
+        <div class="type-row"><div class="sample mono">127.0.0.1:1443</div><div class="tag">11.5 · mono</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Форма</div></div>
+        <div class="kv">
+          <div class="k">Радиус карточки</div><div class="v"><span class="mono">16 px</span></div>
+          <div class="k">Радиус кнопки</div><div class="v"><span class="mono">10 px</span></div>
+          <div class="k">Отступ в карточке</div><div class="v"><span class="mono">14–16 px</span></div>
+          <div class="k">Между карточками</div><div class="v"><span class="mono">10 px</span></div>
+          <div class="k">Шрифт</div><div class="v"><span class="mono">Segoe UI / system</span></div>
+        </div>
+        <div class="hint" style="margin-top:10px;">Material 3 остаётся под капотом — меняются только токены темы и общие компоненты.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>
