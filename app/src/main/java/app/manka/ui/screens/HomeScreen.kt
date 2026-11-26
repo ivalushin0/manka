@@ -406,7 +406,13 @@ private fun ServiceStatusCard(vm: MainViewModel, nav: NavHostController, version
             if (time > 0) Hint(stringResource(R.string.services_time, DateUtils.getRelativeTimeSpanString(time).toString()))
             val bad = failed.filterValues { it.isNotEmpty() }
             if (bad.isNotEmpty()) {
-                Hint(bad.entries.joinToString("; ") { "${serviceTitle(it.key)}: ${it.value.joinToString(", ")}" })
+                // serviceTitle is @Composable: build the line with the inline forEach, not joinToString
+                val line = StringBuilder()
+                bad.forEach { (sid, domains) ->
+                    if (line.isNotEmpty()) line.append("; ")
+                    line.append(serviceTitle(sid)).append(": ").append(domains.joinToString(", "))
+                }
+                Hint(line.toString())
             }
             Hint(stringResource(R.string.services_tap_hint))
         }
