@@ -172,7 +172,8 @@ fun DoctorScreen(vm: MainViewModel, onBack: () -> Unit) {
         ),
         Check(
             stringResource(R.string.doctor_network),
-            profileTitle(vm, own) + (status.ssid?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+            // the SSID is already the profile title for a known Wi-Fi, don't repeat it
+            status.ssid?.takeIf { it.isNotBlank() } ?: profileTitle(vm, own),
             Health.Ok,
             ok,
         ),
