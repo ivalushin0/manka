@@ -77,7 +77,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
     val status by vm.status.collectAsState()
     val loaded by vm.loaded.collectAsState()
     val busy by vm.busy.collectAsState()
-    val presetsList by vm.presets.presets.collectAsState()
     @Suppress("UNUSED_VARIABLE") val prefsVersion by vm.prefs.version.collectAsState()
     val context = LocalContext.current
     val prefs = vm.prefs
@@ -137,7 +136,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
             val shown = remember(prefsVersion) { shownServices(vm) }
             val servicesOk = shown.values.all { it >= 100 }
             val okCount = shown.values.count { it >= 100 }
-            val active = remember(presetsList, engine, own, prefsVersion) { vm.presets.active(engine, own) }
 
             SectionCard(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -147,7 +145,11 @@ fun HomeScreen(vm: MainViewModel, nav: NavHostController) {
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                         )
-                        Hint("${engine.title} · ${profileTitle(vm, own)} · ${active.name}")
+                        // the preset name can be a whole strategy line: keep the card to one short line
+                        Hint(
+                            "${engine.title} · ${profileTitle(vm, own)}" +
+                                if (running) " · ${stringResource(R.string.doctor_rules)}" else "",
+                        )
                     }
                     Switch(
                         checked = prefs.enabled,
