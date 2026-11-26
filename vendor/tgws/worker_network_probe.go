@@ -3,7 +3,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -74,7 +73,7 @@ func resolveWorkerProbeHost(ctx context.Context, domain, family string) (string,
 	if family == workerProbeIPAuto { return domain, nil }
 	network := "ip4"
 	if family == workerProbeIPv6 { network = "ip6" }
-	ips, err := net.DefaultResolver.LookupIP(ctx, network, domain)
+	ips, err := lookupIP(ctx, network, domain)
 	if err != nil { return "", fmt.Errorf("resolve_%s: %w", family, err) }
 	if len(ips) == 0 { return "", fmt.Errorf("resolve_%s: no addresses", family) }
 	return ips[0].String(), nil

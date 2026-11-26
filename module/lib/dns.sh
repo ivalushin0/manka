@@ -69,6 +69,9 @@ setup_dns() {
 	[ "$(settings get global private_dns_mode 2>/dev/null)" = hostname ] || _dot=1
 	chain_init ipt nat MANKA_DNS OUTPUT || return 0
 	ipt -t nat -A MANKA_DNS -d 127.0.0.0/8 -j RETURN
+	# The Telegram proxy asks its own resolvers (see tgws_dns_args): a fallback to a public server
+	# must reach it, not be redirected back into a dnsproxy whose upstream is the thing that failed.
+	ipt -t nat -A MANKA_DNS -m owner --uid-owner "${TGWS_UID:-2000}" -j RETURN
 	if [ "$_to" = local ]; then
 		ipt -t nat -A MANKA_DNS -p udp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
 		ipt -t nat -A MANKA_DNS -p tcp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"

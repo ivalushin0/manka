@@ -25,8 +25,17 @@ domain list.
    plain static binary, not through an `.so` + JNA.
 2. The standalone `main()` gets a real MTProto mode: `--mtproto --secret <hex> --runtime '<tokens>'`.
    Upstream's `main()` only runs the SOCKS proxy.
-3. `setupResolver()` points `net.DefaultResolver` at the module's dnsproxy (`127.0.0.1:10853`): an
-   Android build without cgo has no `/etc/resolv.conf`, so every lookups fails with
-   `dial tcp: lookup … on [::1]:53`.
+3. The proxy resolves names through an ordered list of resolvers, given with `--dns host[:port]`
+   (repeatable, comma-separated entries allowed): an Android build without cgo has no
+   `/etc/resolv.conf`, so the pure-Go resolver dials `[::1]:53` and every lookup fails. The module
+   passes its dnsproxy (`127.0.0.1:10853`) first and plain public servers as a fallback, because a
+   DoH upstream may be blocked or not up yet after boot/network change; the next resolver is tried
+   when the previous one fails. `net.DefaultResolver` is pointed at the first entry for AWG code.
+4. `cachedUpstreamDNSCooldownSeconds` is 30 s instead of 6 hours (`tgwsroute/cfpool.go`). All of
+   Manka's CF domains come from `@cf_cached_domains`, i.e. are "cached upstreams"; upstream then
+   benches every one of them for six hours after a single DNS failure. A DNS hiccup while mobile
+   data is coming up at boot therefore left Telegram with a green module and no route at all until
+   the proxy was restarted. The normal progressive cooldown (30/120/300 s) still applies to real
+   domain failures.
 
 Build: `scripts/build-tgws.sh <out_dir>` (pure Go, `CGO_ENABLED=0`, `GOOS=linux`, arm64 + armv7).

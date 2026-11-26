@@ -463,7 +463,7 @@ func resolvePreferredIPsContext(parent context.Context, domain string, timeout f
 	ctx, cancel := context.WithTimeout(parent, time.Duration(resolveTimeout*float64(time.Second)))
 	defer cancel()
 
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, domain)
+	addrs, err := lookupIPAddr(ctx, domain)
 	if err != nil {
 		return resolvedIPs{}, err
 	}
@@ -3648,17 +3648,130 @@ func ResetAdaptiveNetworkRouteStats(cProfileID string) {
 // ---------------------------------------------------------------------------
 
 
-// setupResolver: Android has no /etc/resolv.conf, so the pure-Go resolver dials [::1]:53 and every
-// name lookup fails. The Manka module runs dnsproxy on 127.0.0.1:10853 - use it for the proxy's own
-// lookups (the CF domains).
-func setupResolver() {
-	net.DefaultResolver = &net.Resolver{
+// Manka patch: the proxy resolves the CF domains itself. Android has no /etc/resolv.conf, so the
+// pure-Go resolver dials [::1]:53 and every lookup fails; the module passes an ordered list of
+// resolvers with --dns instead (its dnsproxy first, plain public DNS as a fallback, because a DoH
+// upstream can be blocked or slow to come up after boot/network change). A dead first resolver must
+// not mean a dead proxy: the next one is tried for the same name.
+var (
+	dnsServersMu sync.RWMutex
+	dnsServers   = []string{"127.0.0.1:10853"}
+)
+
+func normalizeDNSServers(list []string) []string {
+	out := make([]string, 0, len(list))
+	for _, item := range list {
+		for _, s := range strings.Split(item, ",") {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				continue
+			}
+			if !strings.Contains(s, ":") {
+				s += ":53"
+			}
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// setDNSServers replaces the resolver chain ("host:port", a port may be omitted, entries may be
+// comma-separated). The first entry also backs net.DefaultResolver for upstream code.
+func setDNSServers(list []string) {
+	clean := normalizeDNSServers(list)
+	if len(clean) == 0 {
+		return
+	}
+	dnsServersMu.Lock()
+	dnsServers = clean
+	dnsServersMu.Unlock()
+	setupResolver()
+}
+
+func dnsServerList() []string {
+	dnsServersMu.RLock()
+	defer dnsServersMu.RUnlock()
+	return append([]string(nil), dnsServers...)
+}
+
+func resolverFor(server string) *net.Resolver {
+	return &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			d := net.Dialer{Timeout: 2 * time.Second}
-			return d.DialContext(ctx, "udp", "127.0.0.1:10853")
+			return d.DialContext(ctx, "udp", server)
 		},
 	}
+}
+
+// setupResolver points net.DefaultResolver at the first configured server (AWG code uses it
+// directly); the proxy's own lookups go through lookupIPAddr and its fallbacks.
+func setupResolver() {
+	servers := dnsServerList()
+	if len(servers) == 0 {
+		return
+	}
+	net.DefaultResolver = resolverFor(servers[0])
+}
+
+// lookupIPAddr asks the configured resolvers in order and returns the first answer. Each server
+// gets at most 2 s so a hung upstream cannot eat the caller's whole resolve timeout.
+func lookupIPAddr(ctx context.Context, domain string) ([]net.IPAddr, error) {
+	var lastErr error
+	for _, server := range dnsServerList() {
+		if err := ctx.Err(); err != nil {
+			if lastErr == nil {
+				lastErr = err
+			}
+			break
+		}
+		qctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		addrs, err := resolverFor(server).LookupIPAddr(qctx, domain)
+		cancel()
+		if err == nil && len(addrs) > 0 {
+			return addrs, nil
+		}
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = fmt.Errorf("no addresses for %s via %s", domain, server)
+		}
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no DNS servers configured")
+	}
+	return nil, lastErr
+}
+
+// lookupIP is lookupIPAddr filtered by family ("ip4"/"ip6"), for code that used
+// net.DefaultResolver.LookupIP.
+func lookupIP(ctx context.Context, network, domain string) ([]net.IP, error) {
+	addrs, err := lookupIPAddr(ctx, domain)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]net.IP, 0, len(addrs))
+	for _, addr := range addrs {
+		ip4 := addr.IP.To4()
+		switch network {
+		case "ip4":
+			if ip4 == nil {
+				continue
+			}
+			out = append(out, ip4)
+		case "ip6":
+			if ip4 != nil {
+				continue
+			}
+			out = append(out, addr.IP)
+		default:
+			out = append(out, addr.IP)
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no %s addresses for %s", network, domain)
+	}
+	return out, nil
 }
 
 func main() {
@@ -3679,6 +3792,7 @@ func main() {
 	runtimeConfig := ""
 	verbose := false
 	port := defaultPort
+	var dnsArgs []string
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -3750,7 +3864,15 @@ func main() {
 				i++
 				runtimeConfig = args[i]
 			}
+		case "--dns":
+			if i+1 < len(args) {
+				i++
+				dnsArgs = append(dnsArgs, args[i])
+			}
 		}
+	}
+	if len(dnsArgs) > 0 {
+		setDNSServers(dnsArgs)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

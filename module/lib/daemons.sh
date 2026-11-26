@@ -19,13 +19,18 @@ supervise() {
 			[ -n "$_a" ] && set -- "$@" "$_a"
 		done < "$_af"
 	fi
-	# engines are quiet unless they fail, so stderr is always kept (last run only)
+	# engines are quiet unless they fail, so stderr is always kept. The previous run is moved aside:
+	# a restart (network change, apply) must not erase the log of the failure that caused it.
 	_log=$LOGDIR/$_name.log
+	[ -s "$_log" ] && mv -f "$_log" "$_log.1"
 	: > "$_log"
 	_fails=0
 	while [ ! -f "$RUN/$_name.stop" ]; do
 		_t0=$(date +%s)
-		[ "$(wc -c < "$_log" 2>/dev/null || echo 0)" -gt 1048576 ] && : > "$_log"
+		if [ "$(wc -c < "$_log" 2>/dev/null || echo 0)" -gt 1048576 ]; then
+			mv -f "$_log" "$_log.1"
+			: > "$_log"
+		fi
 		"$_bin" "$@" </dev/null >>"$_log" 2>&1 &
 		echo $! > "$RUN/$_name.pid"
 		wait $!

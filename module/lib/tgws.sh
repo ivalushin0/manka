@@ -11,8 +11,24 @@
 TGWS_UID=2000
 TGWS_RUNTIME=/data/local/tmp/manka
 
+# Resolvers the core tries in order: the module's dnsproxy, the plain server of the same provider,
+# then public ones. dnsproxy may not be up yet right after boot or a network change, and its DoH
+# upstream can time out on a mobile network; a lookup failure must not leave Telegram without a
+# route (dns.sh excludes this uid from the DNS redirect, so a fallback really reaches that server).
+tgws_dns_args() {
+	# Yandex's plain DNS first among the fallbacks: public DoH/plain endpoints of Google and
+	# Cloudflare are often cut on Russian mobile networks, this one is not
+	_d="--dns 127.0.0.1:$DNS_PORT --dns 77.88.8.8:53"
+	case "$DNS_SERVER" in
+		""|77.88.8.8) ;;
+		*.*.*.*) _d="$_d --dns $DNS_SERVER:53" ;;
+	esac
+	[ "$DNS_SERVER" = 8.8.8.8 ] || _d="$_d --dns 8.8.8.8:53"
+	echo "$_d"
+}
+
 tgws_sum() {
-	echo "$(md5sum < "$ARGS/tgws.runtime" 2>/dev/null) $(md5sum < "$ARGS/tgws.secret" 2>/dev/null) $(md5sum < "$BIN/tgwsproxy" 2>/dev/null) $TGWS_PORT"
+	echo "$(md5sum < "$ARGS/tgws.runtime" 2>/dev/null) $(md5sum < "$ARGS/tgws.secret" 2>/dev/null) $(md5sum < "$BIN/tgwsproxy" 2>/dev/null) $TGWS_PORT $(tgws_dns_args)"
 }
 
 tgws_direct() {
@@ -38,8 +54,9 @@ start_tgws() {
 	fi
 	cp -f "$ARGS/tgws.runtime" "$RUN/tgws.runtime" 2>/dev/null
 	echo 1 > "$RUN/tgws.direct"
-	start_daemon tgws "$MODDIR/tgws-run.sh" "" --mtproto --host 127.0.0.1 --port "$TGWS_PORT" \
-		--secret "$_secret" --runtime "$_runtime"
+	set -- --mtproto --host 127.0.0.1 --port "$TGWS_PORT" --secret "$_secret" --runtime "$_runtime"
+	for _d in $(tgws_dns_args); do set -- "$@" "$_d"; done
+	start_daemon tgws "$MODDIR/tgws-run.sh" "" "$@"
 	tgws_sum > "$RUN/tgws.sum"
 	log "tgwsproxy started on 127.0.0.1:$TGWS_PORT as uid $TGWS_UID"
 }

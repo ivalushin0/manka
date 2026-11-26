@@ -20,7 +20,11 @@ const (
 )
 
 const (
-	cachedUpstreamDNSCooldownSeconds = 6 * 60 * 60
+	// Manka patch: upstream uses 6 hours here. These domains are the proxy's only route on this
+	// network, and a DNS failure is almost always local and transient (dnsproxy still starting at
+	// boot, the network not up yet, a DoH timeout). Six hours of "CF pool unavailable" with the
+	// module green is exactly the "Telegram is dead on mobile data" that made Manka vendor the core.
+	cachedUpstreamDNSCooldownSeconds = 30
 	cachedUpstreamSourceScoreBonus   = 4
 	cfDomainExplorationInterval      = 5
 	cfDomainExplorationMaxScoreGap   = 40
