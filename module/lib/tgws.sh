@@ -71,8 +71,12 @@ tgws_probe() {
 	fi
 	_p=$(cat "$RUN/tgws.pid" 2>/dev/null)
 	_up=0
-	if [ -n "$_p" ] && [ -d "/proc/$_p" ]; then
-		_up=$(( $(date +%s) - $(stat -c %Y "/proc/$_p" 2>/dev/null || date +%s) ))
+	if [ -n "$_p" ] && [ -r "/proc/$_p/stat" ]; then
+		# starttime is field 22 of /proc/pid/stat (20 after the comm field), in 100 Hz ticks on Android
+		_start=$(sed 's/.*) //' "/proc/$_p/stat" | cut -d' ' -f20)
+		_now=$(cut -d' ' -f1 /proc/uptime | cut -d. -f1)
+		[ -n "$_start" ] && [ -n "$_now" ] && _up=$(( _now - _start / 100 ))
+		[ "$_up" -ge 0 ] 2>/dev/null || _up=0
 	fi
 	_ok=$(grep -c 'reason=connected' "$LOGDIR/tgws.log" 2>/dev/null)
 	_bad=$(grep -c 'reason=cfproxy_unavailable' "$LOGDIR/tgws.log" 2>/dev/null)
