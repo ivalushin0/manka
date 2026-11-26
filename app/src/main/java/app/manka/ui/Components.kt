@@ -146,8 +146,8 @@ fun Mono(text: String, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VA
 }
 
 @Composable
-fun Hint(text: String) {
-    Text(text, style = HintStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+fun Hint(text: String, modifier: Modifier = Modifier) {
+    Text(text, modifier, style = HintStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /** Hints and subtitles: a little larger than bodySmall (12 sp read poorly in the dark theme). */

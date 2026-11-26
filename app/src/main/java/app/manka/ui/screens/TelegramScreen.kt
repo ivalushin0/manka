@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,7 +48,6 @@ import app.manka.ui.StatusPill
 import app.manka.ui.ScreenScaffold
 import app.manka.ui.SectionCard
 import app.manka.ui.StatusColors
-import app.manka.ui.SwitchRow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -108,17 +108,17 @@ fun TelegramScreen(vm: MainViewModel, onBack: () -> Unit) {
                         color = if (status.tgwsRunning) StatusColors.ok else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                SwitchRow(
-                    title = stringResource(R.string.tgws_title),
-                    subtitle = when {
-                        !status.tgwsRunning -> stringResource(R.string.tgws_not_running)
-                        !status.tgwsDirect -> stringResource(R.string.tgws_running_cf, prefs.tgwsPort)
-                        else -> stringResource(R.string.tgws_running, prefs.tgwsPort)
-                    },
-                    checked = prefs.tgws,
-                    enabled = status.usable && !busy,
-                    onChange = { vm.setTgws(it) },
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Hint(
+                        when {
+                            !status.tgwsRunning -> stringResource(R.string.tgws_not_running)
+                            !status.tgwsDirect -> stringResource(R.string.tgws_running_cf, prefs.tgwsPort)
+                            else -> stringResource(R.string.tgws_running, prefs.tgwsPort)
+                        },
+                        Modifier.weight(1f).padding(end = 12.dp),
+                    )
+                    Switch(checked = prefs.tgws, onCheckedChange = { vm.setTgws(it) }, enabled = status.usable && !busy)
+                }
                 Hint(stringResource(R.string.tgws_background_hint))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { openTelegram(context, vm) }) { Text(stringResource(R.string.tgws_connect)) }
